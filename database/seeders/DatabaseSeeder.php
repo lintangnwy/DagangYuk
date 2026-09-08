@@ -2,24 +2,51 @@
 
 namespace Database\Seeders;
 
+use App\Models\Role;
+use App\Models\Tenant;
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        // User::factory(10)->create();
+    
+        $superAdminRole = Role::create(['name' => 'super_admin']);
+        $adminRole      = Role::create(['name' => 'admin']);
+        $cashierRole    = Role::create(['name' => 'user']);
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        $tenant = Tenant::create([
+            'name'      => 'Kopi Senja',
+            'address'   => 'Jl. Raya No. 123',
+            'phone'     => '081234567890',
+            'is_active' => true,
+        ]);
+
+        User::create([
+            'name'      => 'Super Admin System',
+            'email'     => 'superadmin@test.com',
+            'password'  => Hash::make('password123'),
+            'role_id'   => $superAdminRole->id,
+            'tenant_id' => null,
+        ]);
+
+
+        User::create([
+            'name'      => 'Admin Kopi Senja',
+            'email'     => 'admin@test.com',
+            'password'  => Hash::make('password123'),
+            'role_id'   => $adminRole->id,
+            'tenant_id' => $tenant->id,
+        ]);
+
+        User::create([
+            'name'      => 'Kasir Kopi Senja',
+            'email'     => 'kasir@test.com',
+            'password'  => Hash::make('password123'),
+            'role_id'   => $cashierRole->id,
+            'tenant_id' => $tenant->id,
         ]);
     }
 }
