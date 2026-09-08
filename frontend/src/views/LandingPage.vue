@@ -3,610 +3,680 @@ import { RouterLink } from 'vue-router'
 
 const features = [
   {
-    icon: '🧾',
-    title: 'Transaksi Cepat',
-    desc: 'Proses penjualan lebih cepat dengan antarmuka kasir yang simpel dan responsif.',
+    title: 'Transaksi lebih cepat',
+    desc: 'Cukup cari produk, masukkan jumlah, dan selesai. Tidak perlu kalkulator terpisah.',
   },
   {
-    icon: '📦',
-    title: 'Manajemen Stok',
-    desc: 'Pantau stok barang secara real-time, dapatkan notifikasi saat stok menipis.',
+    title: 'Stok otomatis tercatat',
+    desc: 'Setiap penjualan langsung memperbarui stok. Tidak ada lagi selisih antara catatan dan rak.',
   },
   {
-    icon: '📊',
-    title: 'Laporan Penjualan',
-    desc: 'Laporan harian, mingguan, dan bulanan lengkap untuk analisis bisnis Anda.',
+    title: 'Laporan setiap saat',
+    desc: 'Buka aplikasi, lihat berapa pemasukan hari ini. Sesederhana itu.',
   },
   {
-    icon: '🖨️',
-    title: 'Cetak Struk',
-    desc: 'Cetak struk langsung dari aplikasi dengan berbagai format printer yang didukung.',
-  },
-  {
-    icon: '👥',
-    title: 'Multi Kasir',
-    desc: 'Dukung beberapa kasir sekaligus dengan manajemen akses yang mudah.',
-  },
-  {
-    icon: '☁️',
-    title: 'Cloud & Offline',
-    desc: 'Tetap beroperasi meski tanpa koneksi internet, data tersinkron otomatis.',
+    title: 'Jalan tanpa internet',
+    desc: 'Listrik mati, wifi down — kasir tetap beroperasi. Data menyinkron otomatis saat koneksi kembali.',
   },
 ]
 </script>
 
 <template>
-  <div class="landing">
-    <!-- Navbar -->
-    <nav class="navbar">
-      <div class="container nav-inner">
-        <div class="brand">
-          <span class="brand-icon">�</span>
-          <span class="brand-name">DagangYuk</span>
-        </div>
-        <div class="nav-links">
-          <a href="#fitur">Fitur</a>
-          <a href="#tentang">Tentang</a>
-          <RouterLink to="/login" class="btn-login">Masuk</RouterLink>
-        </div>
-      </div>
-    </nav>
+  <div class="page">
 
-    <!-- Hero Section -->
+    <!-- Navbar -->
+    <header class="header">
+      <div class="container header-inner">
+        <RouterLink to="/" class="wordmark">DagangYuk</RouterLink>
+        <nav class="header-nav" aria-label="Navigasi utama">
+          <a href="#fitur">Fitur</a>
+          <RouterLink to="/login" class="btn-nav">Masuk</RouterLink>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Hero -->
     <section class="hero">
       <div class="container hero-inner">
-        <div class="hero-text">
-          <span class="badge">✨ POS Modern untuk UMKM</span>
-          <h1>Kelola Kasir Bisnis Anda <span class="highlight">Lebih Mudah</span></h1>
-          <p>
-            DagangYuk adalah aplikasi point of sale yang dirancang khusus untuk membantu UMKM
-            mengelola penjualan, stok, dan laporan keuangan dalam satu platform yang simpel.
+        <div class="hero-content">
+          <p class="eyebrow">Aplikasi kasir untuk UMKM</p>
+          <h1>
+            Jualan lebih lancar,<br class="break-md" />
+            catatan lebih rapi
+          </h1>
+          <p class="lead">
+            DagangYuk adalah kasir digital yang dirancang untuk pemilik
+            toko — bukan untuk akuntan. Tidak perlu training, tidak perlu
+            setup berhari-hari.
           </p>
-          <div class="hero-actions">
-            <RouterLink to="/login" class="btn-primary">Mulai Sekarang →</RouterLink>
-            <a href="#fitur" class="btn-outline">Lihat Fitur</a>
-          </div>
-          <div class="hero-stats">
-            <div class="stat">
-              <strong>500+</strong>
-              <span>Toko Aktif</span>
-            </div>
-            <div class="divider"></div>
-            <div class="stat">
-              <strong>1 Juta+</strong>
-              <span>Transaksi</span>
-            </div>
-            <div class="divider"></div>
-            <div class="stat">
-              <strong>99.9%</strong>
-              <span>Uptime</span>
-            </div>
+          <div class="hero-cta">
+            <RouterLink to="/login" class="btn-primary">Coba sekarang</RouterLink>
+            <a href="#fitur" class="btn-text">Pelajari fitur →</a>
           </div>
         </div>
-        <div class="hero-visual">
-          <div class="pos-mockup">
-            <div class="mockup-header">
-              <span class="dot red"></span>
-              <span class="dot yellow"></span>
-              <span class="dot green"></span>
-              <span class="mockup-title">Kasir — DagangYuk</span>
+
+        <!-- Mockup sederhana -->
+        <div class="hero-visual" aria-hidden="true">
+          <div class="receipt">
+            <div class="receipt-header">
+              <span class="r-store">Toko Makmur</span>
+              <span class="r-date">08 Sep 2026</span>
             </div>
-            <div class="mockup-body">
-              <div class="mockup-cart">
-                <div class="cart-item" v-for="i in 3" :key="i">
-                  <div class="item-icon">📦</div>
-                  <div class="item-info">
-                    <div class="item-name skeleton"></div>
-                    <div class="item-price skeleton short"></div>
-                  </div>
-                  <div class="item-qty">x{{ i }}</div>
-                </div>
+            <div class="receipt-divider"></div>
+            <div class="receipt-items">
+              <div class="r-item">
+                <span>Indomie Goreng</span>
+                <span>Rp 3.500</span>
               </div>
-              <div class="mockup-total">
-                <span>Total</span>
-                <strong>Rp 125.000</strong>
+              <div class="r-item">
+                <span>Teh Botol 500ml</span>
+                <span>Rp 5.000</span>
               </div>
-              <div class="mockup-btn">💳 Bayar Sekarang</div>
+              <div class="r-item">
+                <span>Roti Tawar</span>
+                <span>Rp 12.000</span>
+              </div>
             </div>
+            <div class="receipt-divider"></div>
+            <div class="r-item r-total">
+              <span>Total</span>
+              <strong>Rp 20.500</strong>
+            </div>
+            <div class="receipt-pay">
+              <div class="pay-row">
+                <span>Bayar</span>
+                <span>Rp 25.000</span>
+              </div>
+              <div class="pay-row pay-change">
+                <span>Kembali</span>
+                <strong>Rp 4.500</strong>
+              </div>
+            </div>
+            <div class="receipt-footer">Terima kasih sudah berbelanja</div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Features Section -->
+    <!-- Stats -->
+    <div class="stats-bar">
+      <div class="container stats-inner">
+        <div class="stat-item">
+          <span class="stat-num">500+</span>
+          <span class="stat-label">toko aktif</span>
+        </div>
+        <div class="stat-sep"></div>
+        <div class="stat-item">
+          <span class="stat-num">1 juta+</span>
+          <span class="stat-label">transaksi diproses</span>
+        </div>
+        <div class="stat-sep"></div>
+        <div class="stat-item">
+          <span class="stat-num">4.8/5</span>
+          <span class="stat-label">kepuasan pengguna</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Features -->
     <section class="features" id="fitur">
       <div class="container">
-        <div class="section-head">
-          <h2>Semua yang Anda Butuhkan</h2>
-          <p>Fitur lengkap untuk mendukung operasional toko Anda setiap hari.</p>
+        <div class="section-intro">
+          <h2>Yang Anda butuhkan, sudah ada</h2>
+          <p>Tidak lebih, tidak kurang — fitur yang benar-benar dipakai setiap hari.</p>
         </div>
         <div class="features-grid">
-          <div class="feature-card" v-for="f in features" :key="f.title">
-            <div class="feature-icon">{{ f.icon }}</div>
+          <article class="f-card" v-for="(f, i) in features" :key="i">
+            <span class="f-index">{{ String(i + 1).padStart(2, '0') }}</span>
             <h3>{{ f.title }}</h3>
             <p>{{ f.desc }}</p>
-          </div>
+          </article>
         </div>
       </div>
     </section>
 
-    <!-- CTA Section -->
-    <section class="cta" id="tentang">
+    <!-- Testimonial -->
+    <section class="testi">
+      <div class="container testi-inner">
+        <blockquote>
+          <p>
+            "Dulu saya tulis stok di buku, sering salah hitung. Sekarang pakai
+            DagangYuk sudah tiga bulan, tidak pernah ada selisih lagi."
+          </p>
+          <footer>
+            <div class="testi-avatar">S</div>
+            <div class="testi-who">
+              <span>Sari Wulandari</span>
+              <small>Warung Kelontong Bu Sari, Semarang</small>
+            </div>
+          </footer>
+        </blockquote>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta">
       <div class="container cta-inner">
-        <h2>Siap Tingkatkan Penjualan Anda?</h2>
-        <p>Bergabung dengan ratusan toko yang sudah menggunakan DagangYuk.</p>
-        <RouterLink to="/login" class="btn-primary large">Coba Gratis Sekarang</RouterLink>
+        <h2>Mulai hari ini, gratis</h2>
+        <p>Tidak perlu kartu kredit. Tidak perlu instalasi. Langsung pakai.</p>
+        <RouterLink to="/login" class="btn-primary">Buat akun</RouterLink>
       </div>
     </section>
 
     <!-- Footer -->
     <footer class="footer">
       <div class="container footer-inner">
-        <div class="brand">
-          <span class="brand-icon">�</span>
-          <span class="brand-name">DagangYuk</span>
-        </div>
-        <p class="footer-copy">© 2026 DagangYuk. Semua hak dilindungi.</p>
+        <span class="wordmark">DagangYuk</span>
+        <span class="footer-note">© 2026 DagangYuk. All rights reserved.</span>
       </div>
     </footer>
+
   </div>
 </template>
 
 <style scoped>
-/* ---- Base ---- */
-.landing {
+/* ─── Tokens ─── */
+:root {
+  --c-ink: #0f0f0f;
+  --c-muted: #6b6b6b;
+  --c-subtle: #999;
+  --c-line: #e8e8e8;
+  --c-surface: #f7f7f7;
+  --c-white: #fff;
+  --r: 8px;
+}
+
+/* ─── Base ─── */
+.page {
   min-height: 100vh;
-  background: #fff;
+  background: var(--c-white);
+  color: var(--c-ink);
+  font-size: 16px;
+  line-height: 1.6;
 }
 
 .container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 24px;
+  width: 100%;
+  max-width: 1100px;
+  margin-inline: auto;
+  padding-inline: clamp(20px, 5vw, 48px);
 }
 
-/* ---- Navbar ---- */
-.navbar {
+/* ─── Header ─── */
+.header {
   position: sticky;
   top: 0;
-  z-index: 100;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid #f0f0f0;
+  z-index: 50;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--c-line);
 }
 
-.nav-inner {
+.header-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 64px;
+  height: 58px;
 }
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.brand-icon {
-  font-size: 24px;
-}
-
-.brand-name {
-  font-size: 20px;
+.wordmark {
+  font-size: 17px;
   font-weight: 700;
-  color: #1a1a2e;
+  color: var(--c-ink);
+  text-decoration: none;
+  letter-spacing: -0.3px;
 }
 
-.nav-links {
+.header-nav {
   display: flex;
   align-items: center;
-  gap: 32px;
+  gap: 24px;
 }
 
-.nav-links a {
+.header-nav a {
+  font-size: 14px;
+  color: var(--c-muted);
   text-decoration: none;
-  color: #555;
+  transition: color 0.15s;
+}
+
+.header-nav a:hover {
+  color: var(--c-ink);
+}
+
+.btn-nav {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: var(--c-ink) !important;
+  border: 1.5px solid var(--c-ink) !important;
+  padding: 6px 16px;
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s !important;
+}
+
+.btn-nav:hover {
+  background: var(--c-ink) !important;
+  color: var(--c-white) !important;
+}
+
+/* ─── Buttons ─── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--c-ink);
+  color: var(--c-white);
   font-size: 15px;
-  transition: color 0.2s;
-}
-
-.nav-links a:hover {
-  color: #f97316;
-}
-
-.btn-login {
-  background: #f97316;
-  color: #fff !important;
-  padding: 8px 20px;
-  border-radius: 8px;
   font-weight: 600;
-  transition: background 0.2s !important;
+  padding: 11px 24px;
+  border-radius: var(--r);
+  text-decoration: none;
+  transition: opacity 0.15s, transform 0.15s;
+  white-space: nowrap;
 }
 
-.btn-login:hover {
-  background: #ea6c0a !important;
+.btn-primary:hover {
+  opacity: 0.82;
+  transform: translateY(-1px);
 }
 
-/* ---- Hero ---- */
+.btn-text {
+  display: inline-flex;
+  align-items: center;
+  font-size: 15px;
+  color: var(--c-muted);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.btn-text:hover {
+  color: var(--c-ink);
+}
+
+/* ─── Hero ─── */
 .hero {
-  background: linear-gradient(135deg, #fff7ed 0%, #fff 60%);
-  padding: 80px 0 100px;
+  padding-block: clamp(64px, 10vw, 112px);
+  border-bottom: 1px solid var(--c-line);
 }
 
 .hero-inner {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 60px;
+  grid-template-columns: 1fr auto;
+  gap: clamp(40px, 6vw, 80px);
   align-items: center;
 }
 
-.badge {
-  display: inline-block;
-  background: #fff7ed;
-  color: #f97316;
-  border: 1px solid #fed7aa;
-  padding: 4px 14px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 500;
-  margin-bottom: 20px;
+.eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--c-subtle);
+  margin-bottom: 16px;
 }
 
-.hero-text h1 {
-  font-size: 48px;
+.hero-content h1 {
+  font-size: clamp(32px, 4.5vw, 52px);
   font-weight: 800;
-  line-height: 1.2;
+  line-height: 1.12;
+  letter-spacing: -1.5px;
+  color: var(--c-ink);
   margin-bottom: 20px;
-  color: #1a1a2e;
 }
 
-.highlight {
-  color: #f97316;
-}
-
-.hero-text p {
-  font-size: 17px;
-  color: #555;
-  line-height: 1.7;
+.lead {
+  font-size: clamp(15px, 2vw, 17px);
+  color: var(--c-muted);
+  line-height: 1.75;
+  max-width: 460px;
   margin-bottom: 36px;
-  max-width: 480px;
 }
 
-.hero-actions {
+.hero-cta {
   display: flex;
-  gap: 16px;
-  margin-bottom: 48px;
-}
-
-.btn-primary {
-  background: #f97316;
-  color: #fff;
-  padding: 13px 28px;
-  border-radius: 10px;
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 16px;
-  transition: background 0.2s, transform 0.2s;
-  display: inline-block;
-}
-
-.btn-primary:hover {
-  background: #ea6c0a;
-  transform: translateY(-1px);
-}
-
-.btn-primary.large {
-  padding: 16px 36px;
-  font-size: 17px;
-}
-
-.btn-outline {
-  border: 2px solid #f97316;
-  color: #f97316;
-  padding: 13px 28px;
-  border-radius: 10px;
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 16px;
-  transition: background 0.2s;
-}
-
-.btn-outline:hover {
-  background: #fff7ed;
-}
-
-.hero-stats {
-  display: flex;
-  gap: 24px;
   align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
 }
 
-.stat {
+/* ─── Receipt mockup ─── */
+.hero-visual {
+  flex-shrink: 0;
+}
+
+.receipt {
+  width: 240px;
+  background: #fff;
+  border: 1px solid var(--c-line);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  font-size: 13px;
+  font-family: 'Courier New', monospace;
+}
+
+.receipt-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.r-store {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--c-ink);
+  font-family: inherit;
+}
+
+.r-date {
+  color: var(--c-subtle);
+  font-family: inherit;
+}
+
+.receipt-divider {
+  border: none;
+  border-top: 1px dashed var(--c-line);
+  margin-block: 10px;
+}
+
+.receipt-items {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.r-item {
+  display: flex;
+  justify-content: space-between;
+  color: var(--c-ink);
+}
+
+.r-item span:last-child {
+  color: var(--c-muted);
+}
+
+.r-total {
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.r-total strong {
+  color: var(--c-ink);
+}
+
+.receipt-pay {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.pay-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--c-subtle);
+}
+
+.pay-change {
+  color: var(--c-ink);
+  font-weight: 600;
+}
+
+.pay-change strong {
+  color: #1a7a4a;
+}
+
+.receipt-footer {
+  margin-top: 14px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--c-subtle);
+  border-top: 1px dashed var(--c-line);
+  padding-top: 10px;
+}
+
+/* ─── Stats ─── */
+.stats-bar {
+  border-bottom: 1px solid var(--c-line);
+  padding-block: 20px;
+}
+
+.stats-inner {
+  display: flex;
+  align-items: center;
+  gap: clamp(20px, 4vw, 48px);
+  flex-wrap: wrap;
+}
+
+.stat-item {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.stat strong {
-  font-size: 22px;
-  font-weight: 800;
-  color: #1a1a2e;
-}
-
-.stat span {
-  font-size: 13px;
-  color: #888;
-}
-
-.divider {
-  width: 1px;
-  height: 40px;
-  background: #e5e5e5;
-}
-
-/* ---- POS Mockup ---- */
-.hero-visual {
-  display: flex;
-  justify-content: center;
-}
-
-.pos-mockup {
-  width: 340px;
-  background: #1a1a2e;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 24px 64px rgba(249, 115, 22, 0.15), 0 8px 24px rgba(0, 0, 0, 0.2);
-}
-
-.mockup-header {
-  background: #252540;
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-}
-
-.dot.red { background: #ff5f57; }
-.dot.yellow { background: #febc2e; }
-.dot.green { background: #28c840; }
-
-.mockup-title {
-  color: #888;
-  font-size: 12px;
-  margin-left: 8px;
-}
-
-.mockup-body {
-  padding: 20px;
-}
-
-.mockup-cart {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.cart-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: #252540;
-  padding: 10px 12px;
-  border-radius: 8px;
-}
-
-.item-icon {
-  font-size: 20px;
-}
-
-.item-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.skeleton {
-  height: 10px;
-  background: #3a3a5c;
-  border-radius: 4px;
-}
-
-.skeleton.short {
-  width: 60%;
-}
-
-.item-qty {
-  color: #f97316;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.mockup-total {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: #ccc;
-  font-size: 15px;
-  border-top: 1px solid #3a3a5c;
-  padding-top: 16px;
-  margin-bottom: 16px;
-}
-
-.mockup-total strong {
-  color: #fff;
+.stat-num {
   font-size: 18px;
-}
-
-.mockup-btn {
-  background: #f97316;
-  color: #fff;
-  text-align: center;
-  padding: 12px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-/* ---- Features ---- */
-.features {
-  padding: 100px 0;
-  background: #fafafa;
-}
-
-.section-head {
-  text-align: center;
-  margin-bottom: 60px;
-}
-
-.section-head h2 {
-  font-size: 36px;
   font-weight: 800;
-  color: #1a1a2e;
-  margin-bottom: 12px;
+  letter-spacing: -0.5px;
+  color: var(--c-ink);
 }
 
-.section-head p {
-  font-size: 17px;
-  color: #666;
+.stat-label {
+  font-size: 12px;
+  color: var(--c-subtle);
+}
+
+.stat-sep {
+  width: 1px;
+  height: 28px;
+  background: var(--c-line);
+  flex-shrink: 0;
+}
+
+/* ─── Features ─── */
+.features {
+  padding-block: clamp(64px, 8vw, 96px);
+  border-bottom: 1px solid var(--c-line);
+}
+
+.section-intro {
+  max-width: 520px;
+  margin-bottom: clamp(36px, 5vw, 56px);
+}
+
+.section-intro h2 {
+  font-size: clamp(22px, 3vw, 30px);
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: var(--c-ink);
+  margin-bottom: 8px;
+}
+
+.section-intro p {
+  font-size: 15px;
+  color: var(--c-muted);
 }
 
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 28px;
+  grid-template-columns: repeat(2, 1fr);
+  border-top: 1px solid var(--c-line);
+  border-left: 1px solid var(--c-line);
 }
 
-.feature-card {
-  background: #fff;
-  border: 1px solid #f0f0f0;
-  border-radius: 16px;
-  padding: 32px 28px;
-  transition: transform 0.2s, box-shadow 0.2s;
+.f-card {
+  padding: clamp(24px, 3vw, 40px);
+  border-right: 1px solid var(--c-line);
+  border-bottom: 1px solid var(--c-line);
+  transition: background 0.15s;
 }
 
-.feature-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+.f-card:hover {
+  background: var(--c-surface);
 }
 
-.feature-icon {
-  font-size: 36px;
-  margin-bottom: 16px;
-}
-
-.feature-card h3 {
-  font-size: 18px;
+.f-index {
+  display: block;
+  font-size: 11px;
   font-weight: 700;
-  color: #1a1a2e;
-  margin-bottom: 10px;
+  letter-spacing: 1.5px;
+  color: var(--c-line);
+  margin-bottom: 14px;
 }
 
-.feature-card p {
+.f-card h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--c-ink);
+  margin-bottom: 8px;
+  letter-spacing: -0.2px;
+}
+
+.f-card p {
   font-size: 14px;
-  color: #666;
-  line-height: 1.6;
+  color: var(--c-muted);
+  line-height: 1.65;
 }
 
-/* ---- CTA ---- */
+/* ─── Testimonial ─── */
+.testi {
+  padding-block: clamp(64px, 8vw, 96px);
+  border-bottom: 1px solid var(--c-line);
+  background: var(--c-surface);
+}
+
+.testi-inner {
+  max-width: 680px;
+}
+
+blockquote {
+  margin: 0;
+}
+
+blockquote p {
+  font-size: clamp(17px, 2.5vw, 22px);
+  font-weight: 500;
+  line-height: 1.6;
+  color: var(--c-ink);
+  letter-spacing: -0.2px;
+  margin-bottom: 28px;
+}
+
+blockquote footer {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.testi-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #d0d0d0;
+  color: var(--c-ink);
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.testi-who {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.testi-who span {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--c-ink);
+}
+
+.testi-who small {
+  font-size: 12px;
+  color: var(--c-subtle);
+}
+
+/* ─── CTA ─── */
 .cta {
-  padding: 100px 0;
-  background: linear-gradient(135deg, #1a1a2e, #2d2d5e);
+  padding-block: clamp(64px, 8vw, 96px);
+  border-bottom: 1px solid var(--c-line);
 }
 
 .cta-inner {
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 480px;
 }
 
 .cta h2 {
-  font-size: 40px;
+  font-size: clamp(22px, 3vw, 30px);
   font-weight: 800;
-  color: #fff;
-  margin-bottom: 16px;
+  letter-spacing: -0.5px;
+  color: var(--c-ink);
 }
 
 .cta p {
-  font-size: 18px;
-  color: #aab;
-  margin-bottom: 40px;
+  font-size: 15px;
+  color: var(--c-muted);
+  margin-bottom: 4px;
 }
 
-/* ---- Footer ---- */
+/* ─── Footer ─── */
 .footer {
-  background: #1a1a2e;
-  border-top: 1px solid #2d2d5e;
-  padding: 24px 0;
+  padding-block: 24px;
 }
 
 .footer-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.footer .brand-name {
-  color: #fff;
-}
-
-.footer-copy {
+.footer-note {
   font-size: 13px;
-  color: #666;
+  color: var(--c-subtle);
 }
 
-/* ---- Responsive ---- */
-@media (max-width: 900px) {
+/* ─── Responsive ─── */
+@media (max-width: 800px) {
   .hero-inner {
     grid-template-columns: 1fr;
-    text-align: center;
-  }
-
-  .hero-text p {
-    max-width: 100%;
-  }
-
-  .hero-actions {
-    justify-content: center;
-  }
-
-  .hero-stats {
-    justify-content: center;
   }
 
   .hero-visual {
-    order: -1;
+    display: none;
   }
 
-  .features-grid {
-    grid-template-columns: repeat(2, 1fr);
+  .break-md {
+    display: none;
   }
 }
 
-@media (max-width: 600px) {
-  .hero-text h1 {
-    font-size: 32px;
-  }
-
+@media (max-width: 560px) {
   .features-grid {
     grid-template-columns: 1fr;
+  }
+
+  .stat-sep {
+    display: none;
+  }
+
+  .stats-inner {
+    gap: 16px;
   }
 
   .footer-inner {
     flex-direction: column;
-    gap: 8px;
-    text-align: center;
-  }
-
-  .nav-links a:not(.btn-login) {
-    display: none;
+    align-items: flex-start;
   }
 }
 </style>

@@ -10,20 +10,16 @@ const errorMessage = ref('')
 
 async function handleLogin() {
   if (!email.value || !password.value) {
-    errorMessage.value = 'Email dan password wajib diisi.'
+    errorMessage.value = 'Email dan password harus diisi.'
     return
   }
-
   errorMessage.value = ''
   isLoading.value = true
-
   try {
-    // TODO: Hubungkan ke Laravel API
-    // const response = await fetch('/api/login', { ... })
-    await new Promise((resolve) => setTimeout(resolve, 1200)) // simulasi request
-    console.log('Login dengan:', email.value)
+    // TODO: POST /api/login
+    await new Promise((r) => setTimeout(r, 1000))
   } catch {
-    errorMessage.value = 'Terjadi kesalahan. Coba lagi.'
+    errorMessage.value = 'Terjadi kesalahan. Silakan coba lagi.'
   } finally {
     isLoading.value = false
   }
@@ -31,80 +27,62 @@ async function handleLogin() {
 </script>
 
 <template>
-  <div class="login-page">
-    <!-- Sisi Kiri — Branding -->
-    <div class="left-panel">
-      <RouterLink to="/" class="brand">
-        <span class="brand-icon">🛒</span>
-        <span class="brand-name">DagangYuk</span>
-      </RouterLink>
+  <div class="page">
 
-      <div class="left-content">
-        <div class="illustration">
-          <div class="ill-circle outer"></div>
-          <div class="ill-circle inner"></div>
-          <div class="ill-icon">🛒</div>
-        </div>
-        <h2>Kelola Toko Anda dengan Mudah</h2>
-        <p>
-          Masuk ke dasbor DagangYuk dan mulai kelola penjualan, stok, dan laporan bisnis Anda
-          dari mana saja.
-        </p>
-        <div class="feature-list">
-          <div class="feature-item">
-            <span class="check">✓</span>
-            <span>Transaksi cepat & akurat</span>
-          </div>
-          <div class="feature-item">
-            <span class="check">✓</span>
-            <span>Laporan real-time</span>
-          </div>
-          <div class="feature-item">
-            <span class="check">✓</span>
-            <span>Manajemen stok otomatis</span>
-          </div>
-        </div>
+    <!-- Panel kiri — branding -->
+    <aside class="panel-left">
+      <RouterLink to="/" class="wordmark">DagangYuk</RouterLink>
+
+      <div class="panel-body">
+        <blockquote>
+          <p>"Sekarang tutup toko tinggal lihat rekap di hp. Tidak perlu repot lagi."</p>
+          <footer>
+            <div class="av">R</div>
+            <div class="av-info">
+              <span>Rina Marlina</span>
+              <small>Toko Sembako Rina, Bandung</small>
+            </div>
+          </footer>
+        </blockquote>
       </div>
-    </div>
+    </aside>
 
-    <!-- Sisi Kanan — Form Login -->
-    <div class="right-panel">
-      <div class="login-box">
-        <div class="login-header">
-          <h1>Selamat Datang 👋</h1>
-          <p>Masuk ke akun DagangYuk Anda</p>
+    <!-- Panel kanan — form -->
+    <main class="panel-right">
+
+      <!-- Back link di mobile -->
+      <RouterLink to="/" class="back-link">← Kembali</RouterLink>
+
+      <div class="form-container">
+        <div class="form-header">
+          <h1>Selamat datang</h1>
+          <p>Masuk untuk melanjutkan ke dasbor toko</p>
         </div>
 
-        <form class="login-form" @submit.prevent="handleLogin" novalidate>
-          <!-- Error Alert -->
-          <div v-if="errorMessage" class="alert-error" role="alert">
-            <span>⚠️</span> {{ errorMessage }}
+        <form @submit.prevent="handleLogin" novalidate>
+
+          <div v-if="errorMessage" class="alert" role="alert">
+            {{ errorMessage }}
           </div>
 
-          <!-- Email -->
-          <div class="form-group">
-            <label for="email">Email</label>
-            <div class="input-wrapper">
-              <span class="input-icon">✉️</span>
-              <input
-                id="email"
-                v-model="email"
-                type="email"
-                placeholder="contoh@email.com"
-                autocomplete="email"
-                :disabled="isLoading"
-              />
-            </div>
+          <div class="field">
+            <label for="email">Alamat email</label>
+            <input
+              id="email"
+              v-model="email"
+              type="email"
+              placeholder="nama@email.com"
+              autocomplete="email"
+              :disabled="isLoading"
+            />
           </div>
 
-          <!-- Password -->
-          <div class="form-group">
-            <div class="label-row">
+          <div class="field">
+            <div class="field-top">
               <label for="password">Password</label>
-              <a href="#" class="forgot-link">Lupa password?</a>
+              <a href="#" tabindex="-1" class="link-forgot">Lupa password?</a>
             </div>
-            <div class="input-wrapper">
-              <span class="input-icon">🔒</span>
+            <div class="input-pw">
               <input
                 id="password"
                 v-model="password"
@@ -119,417 +97,392 @@ async function handleLogin() {
                 @click="showPassword = !showPassword"
                 :aria-label="showPassword ? 'Sembunyikan password' : 'Tampilkan password'"
               >
-                {{ showPassword ? '🙈' : '👁️' }}
+                <!-- Eye icon -->
+                <svg v-if="!showPassword" xmlns="http://www.w3.org/2000/svg" width="15" height="15"
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+                <!-- Eye-off icon -->
+                <svg v-else xmlns="http://www.w3.org/2000/svg" width="15" height="15"
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
               </button>
             </div>
           </div>
 
-          <!-- Remember Me -->
-          <label class="remember">
-            <input type="checkbox" />
-            <span>Ingat saya</span>
-          </label>
-
-          <!-- Submit -->
           <button type="submit" class="btn-submit" :disabled="isLoading">
-            <span v-if="isLoading" class="spinner"></span>
+            <span v-if="isLoading" class="spinner" aria-hidden="true"></span>
             <span>{{ isLoading ? 'Memproses...' : 'Masuk' }}</span>
           </button>
+
         </form>
 
-        <p class="register-hint">
-          Belum punya akun?
-          <a href="#">Hubungi admin</a>
+        <p class="note">
+          Belum terdaftar? <a href="#">Hubungi admin toko</a>
         </p>
       </div>
-    </div>
+
+    </main>
   </div>
 </template>
 
 <style scoped>
-.login-page {
-  min-height: 100vh;
+/* ─── Layout utama ─── */
+.page {
+  min-height: 100dvh;
   display: grid;
   grid-template-columns: 1fr 1fr;
 }
 
-/* ---- Left Panel ---- */
-.left-panel {
-  background: linear-gradient(145deg, #1a1a2e 0%, #2d2d5e 100%);
-  padding: 40px 56px;
+/* ─── Panel kiri ─── */
+.panel-left {
+  background: #111;
+  padding: clamp(28px, 4vw, 48px);
   display: flex;
   flex-direction: column;
   position: relative;
   overflow: hidden;
 }
 
-.left-panel::before {
+/* Subtle texture */
+.panel-left::before {
   content: '';
   position: absolute;
-  top: -120px;
-  right: -120px;
-  width: 400px;
-  height: 400px;
-  border-radius: 50%;
-  background: rgba(249, 115, 22, 0.08);
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 80% 20%, rgba(255,255,255,0.03) 0%, transparent 50%),
+    radial-gradient(circle at 20% 80%, rgba(255,255,255,0.02) 0%, transparent 50%);
   pointer-events: none;
 }
 
-.left-panel::after {
-  content: '';
-  position: absolute;
-  bottom: -80px;
-  left: -80px;
-  width: 300px;
-  height: 300px;
-  border-radius: 50%;
-  background: rgba(249, 115, 22, 0.05);
-  pointer-events: none;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  text-decoration: none;
-  margin-bottom: auto;
-}
-
-.brand-icon {
-  font-size: 28px;
-}
-
-.brand-name {
-  font-size: 22px;
+.wordmark {
+  font-size: 17px;
   font-weight: 700;
   color: #fff;
-}
-
-.left-content {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  padding: 40px 0 60px;
+  text-decoration: none;
+  letter-spacing: -0.3px;
   position: relative;
   z-index: 1;
 }
 
-/* Illustration */
-.illustration {
+.panel-body {
+  margin-top: auto;
+  margin-bottom: clamp(32px, 6vh, 64px);
   position: relative;
-  width: 120px;
-  height: 120px;
-  margin-bottom: 36px;
+  z-index: 1;
 }
 
-.ill-circle {
-  position: absolute;
+blockquote {
+  margin: 0;
+}
+
+blockquote p {
+  font-size: clamp(16px, 1.6vw, 20px);
+  font-weight: 400;
+  color: #e0e0e0;
+  line-height: 1.65;
+  margin-bottom: 24px;
+  max-width: 320px;
+}
+
+blockquote footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.av {
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.ill-circle.outer {
-  width: 120px;
-  height: 120px;
-  background: rgba(249, 115, 22, 0.12);
-}
-
-.ill-circle.inner {
-  width: 80px;
-  height: 80px;
-  background: rgba(249, 115, 22, 0.18);
-}
-
-.ill-icon {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 40px;
-  line-height: 1;
-}
-
-.left-content h2 {
-  font-size: 28px;
+  background: #2a2a2a;
+  color: #ccc;
+  font-size: 13px;
   font-weight: 700;
-  color: #fff;
-  margin-bottom: 14px;
-  line-height: 1.3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid #3a3a3a;
 }
 
-.left-content p {
-  font-size: 15px;
-  color: #9999bb;
-  line-height: 1.7;
-  margin-bottom: 32px;
-  max-width: 360px;
-}
-
-.feature-list {
+.av-info {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 2px;
 }
 
-.feature-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: #ccc;
-  font-size: 15px;
+.av-info span {
+  font-size: 13px;
+  font-weight: 600;
+  color: #d0d0d0;
 }
 
-.check {
-  width: 22px;
-  height: 22px;
-  background: #f97316;
-  color: #fff;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.av-info small {
   font-size: 11px;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-/* ---- Right Panel ---- */
-.right-panel {
-  background: #f9fafb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 24px;
-}
-
-.login-box {
-  width: 100%;
-  max-width: 420px;
-}
-
-.login-header {
-  margin-bottom: 36px;
-}
-
-.login-header h1 {
-  font-size: 30px;
-  font-weight: 800;
-  color: #1a1a2e;
-  margin-bottom: 8px;
-}
-
-.login-header p {
-  font-size: 15px;
   color: #666;
 }
 
-/* Form */
-.login-form {
+/* ─── Panel kanan ─── */
+.panel-right {
+  background: #fafafa;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  align-items: flex-start;
+  justify-content: center;
+  padding: clamp(32px, 6vw, 64px) clamp(24px, 5vw, 48px);
+  padding-left: clamp(48px, 7vw, 96px);
+  position: relative;
 }
 
-.alert-error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #dc2626;
-  border-radius: 8px;
-  padding: 12px 16px;
+.back-link {
+  display: none;
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  font-size: 13px;
+  color: #888;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.back-link:hover {
+  color: #111;
+}
+
+.form-container {
+  width: 100%;
+  max-width: 360px;
+}
+
+/* ─── Form header ─── */
+.form-header {
+  margin-bottom: 32px;
+}
+
+.form-header h1 {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: #111;
+  margin-bottom: 4px;
+}
+
+.form-header p {
   font-size: 14px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  color: #888;
 }
 
-.form-group {
+/* ─── Form fields ─── */
+form {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 18px;
 }
 
-.form-group label {
-  font-size: 14px;
+.alert {
+  background: #fef3f3;
+  border: 1px solid #f5c6c6;
+  color: #b91c1c;
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  line-height: 1.5;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field label {
+  font-size: 13px;
   font-weight: 600;
-  color: #374151;
+  color: #222;
 }
 
-.label-row {
+.field-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.forgot-link {
+.field-top label {
   font-size: 13px;
-  color: #f97316;
+  font-weight: 600;
+  color: #222;
+}
+
+.link-forgot {
+  font-size: 12px;
+  color: #999;
   text-decoration: none;
+  transition: color 0.15s;
 }
 
-.forgot-link:hover {
-  text-decoration: underline;
+.link-forgot:hover {
+  color: #111;
 }
 
-.input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.input-icon {
-  position: absolute;
-  left: 14px;
-  font-size: 16px;
-  pointer-events: none;
-}
-
-.input-wrapper input {
+.field input,
+.input-pw input {
   width: 100%;
-  padding: 12px 44px 12px 44px;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 10px;
-  font-size: 15px;
+  height: 42px;
+  padding: 0 14px;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 7px;
+  font-size: 14px;
+  color: #111;
   background: #fff;
-  color: #1a1a2e;
-  transition: border-color 0.2s, box-shadow 0.2s;
   outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  -webkit-appearance: none;
 }
 
-.input-wrapper input:focus {
-  border-color: #f97316;
-  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.12);
+.field input:focus,
+.input-pw input:focus {
+  border-color: #111;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06);
 }
 
-.input-wrapper input::placeholder {
-  color: #bbb;
+.field input::placeholder,
+.input-pw input::placeholder {
+  color: #c8c8c8;
 }
 
-.input-wrapper input:disabled {
-  background: #f3f4f6;
+.field input:disabled,
+.input-pw input:disabled {
+  background: #f3f3f3;
   cursor: not-allowed;
+  color: #aaa;
+}
+
+.input-pw {
+  position: relative;
+}
+
+.input-pw input {
+  padding-right: 42px;
 }
 
 .toggle-pw {
   position: absolute;
-  right: 14px;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 16px;
-  padding: 0;
-  line-height: 1;
-}
-
-/* Remember */
-.remember {
+  color: #bbb;
+  padding: 4px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 14px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.toggle-pw:hover {
   color: #555;
-  cursor: pointer;
 }
 
-.remember input[type='checkbox'] {
-  width: 16px;
-  height: 16px;
-  accent-color: #f97316;
-}
-
-/* Submit Button */
+/* ─── Submit ─── */
 .btn-submit {
-  background: #f97316;
+  width: 100%;
+  height: 42px;
+  background: #111;
   color: #fff;
   border: none;
-  padding: 14px;
-  border-radius: 10px;
-  font-size: 16px;
-  font-weight: 700;
+  border-radius: 7px;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s, transform 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  transition: opacity 0.15s;
+  margin-top: 4px;
 }
 
 .btn-submit:hover:not(:disabled) {
-  background: #ea6c0a;
-  transform: translateY(-1px);
+  opacity: 0.82;
 }
 
 .btn-submit:disabled {
-  opacity: 0.7;
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
-/* Spinner */
 .spinner {
-  width: 18px;
-  height: 18px;
-  border: 2px solid rgba(255, 255, 255, 0.4);
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
   border-top-color: #fff;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
+  flex-shrink: 0;
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
-/* Register hint */
-.register-hint {
+/* ─── Note ─── */
+.note {
   text-align: center;
-  margin-top: 24px;
-  font-size: 14px;
-  color: #666;
+  margin-top: 20px;
+  font-size: 13px;
+  color: #999;
 }
 
-.register-hint a {
-  color: #f97316;
+.note a {
+  color: #111;
   font-weight: 600;
   text-decoration: none;
 }
 
-.register-hint a:hover {
+.note a:hover {
   text-decoration: underline;
 }
 
-/* ---- Responsive ---- */
-@media (max-width: 768px) {
-  .login-page {
+/* ─── Responsive ─── */
+
+/* Tablet */
+@media (max-width: 860px) {
+  .page {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Mobile — sembunyikan panel kiri, tampilkan form saja */
+@media (max-width: 640px) {
+  .page {
     grid-template-columns: 1fr;
+    min-height: 100dvh;
   }
 
-  .left-panel {
-    padding: 32px 24px;
-    min-height: auto;
-  }
-
-  .left-content {
-    padding: 24px 0 0;
-  }
-
-  .left-content h2 {
-    font-size: 22px;
-  }
-
-  .left-content p {
+  .panel-left {
     display: none;
   }
 
-  .illustration {
-    width: 80px;
-    height: 80px;
-    margin-bottom: 20px;
+  .panel-right {
+    justify-content: flex-start;
+    padding-top: 72px;
   }
 
-  .ill-circle.outer { width: 80px; height: 80px; }
-  .ill-circle.inner { width: 52px; height: 52px; }
-  .ill-icon { font-size: 28px; }
+  .back-link {
+    display: inline-flex;
+  }
+
+  .form-container {
+    max-width: 100%;
+  }
 }
 </style>
