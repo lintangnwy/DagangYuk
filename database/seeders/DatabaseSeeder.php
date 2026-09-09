@@ -12,11 +12,12 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-    
+        // Roles
         $superAdminRole = Role::create(['name' => 'super_admin']);
         $adminRole      = Role::create(['name' => 'admin']);
         $cashierRole    = Role::create(['name' => 'user']);
 
+        // Tenant
         $tenant = Tenant::create([
             'name'      => 'Kopi Senja',
             'address'   => 'Jl. Raya No. 123',
@@ -24,15 +25,16 @@ class DatabaseSeeder extends Seeder
             'is_active' => true,
         ]);
 
+        // Super Admin (tidak terikat tenant)
         User::create([
-            'name'      => 'Super Admin System',
+            'name'      => 'Super Admin',
             'email'     => 'superadmin@test.com',
             'password'  => Hash::make('password123'),
             'role_id'   => $superAdminRole->id,
             'tenant_id' => null,
         ]);
 
-
+        // Admin toko
         User::create([
             'name'      => 'Admin Kopi Senja',
             'email'     => 'admin@test.com',
@@ -41,6 +43,7 @@ class DatabaseSeeder extends Seeder
             'tenant_id' => $tenant->id,
         ]);
 
+        // Kasir
         User::create([
             'name'      => 'Kasir Kopi Senja',
             'email'     => 'kasir@test.com',

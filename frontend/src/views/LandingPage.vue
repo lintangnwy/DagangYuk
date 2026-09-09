@@ -1,173 +1,229 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
+import { onMounted, onUnmounted, ref } from 'vue'
+import { gsap } from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import ThemeSwitcher from '@/components/ThemeSwitcher.vue'
+
+gsap.registerPlugin(ScrollTrigger)
 
 const features = [
   {
-    title: 'Transaksi lebih cepat',
-    desc: 'Cukup cari produk, masukkan jumlah, dan selesai. Tidak perlu kalkulator terpisah.',
+    num: '01',
+    title: 'Kasir yang cepat',
+    desc: 'Cari produk, masukkan jumlah, selesai. Tidak perlu kalkulator terpisah.',
   },
   {
-    title: 'Stok otomatis tercatat',
-    desc: 'Setiap penjualan langsung memperbarui stok. Tidak ada lagi selisih antara catatan dan rak.',
+    num: '02',
+    title: 'Stok otomatis',
+    desc: 'Setiap transaksi langsung memperbarui stok. Tidak ada selisih lagi.',
   },
   {
-    title: 'Laporan setiap saat',
-    desc: 'Buka aplikasi, lihat berapa pemasukan hari ini. Sesederhana itu.',
+    num: '03',
+    title: 'Laporan real-time',
+    desc: 'Buka aplikasi, lihat pemasukan hari ini. Sesederhana itu.',
   },
   {
+    num: '04',
     title: 'Jalan tanpa internet',
-    desc: 'Listrik mati, wifi down — kasir tetap beroperasi. Data menyinkron otomatis saat koneksi kembali.',
+    desc: 'Kasir tetap beroperasi. Data menyinkron otomatis saat online kembali.',
   },
 ]
+
+// ── Rotating text ──────────────────────────────────────
+const words        = ['lancar', 'cepat', 'mudah', 'rapi', 'aman']
+const wordIndex    = ref(0)
+const isAnim       = ref(false)
+let   timer: ReturnType<typeof setInterval> | null = null
+
+function startRotate() {
+  timer = setInterval(() => {
+    if (isAnim.value) return
+    isAnim.value = true
+    const el = document.querySelector('.rw') as HTMLElement | null
+    if (!el) { isAnim.value = false; return }
+    gsap.to(el, {
+      y: -24, opacity: 0, duration: 0.25, ease: 'power2.in',
+      onComplete() {
+        wordIndex.value = (wordIndex.value + 1) % words.length
+        gsap.fromTo(el,
+          { y: 24, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.3, ease: 'power2.out',
+            onComplete() { isAnim.value = false } },
+        )
+      },
+    })
+  }, 2000)
+}
+
+onMounted(() => {
+  // Hero
+  const tl = gsap.timeline({ defaults: { ease: 'power2.out' } })
+  tl.from('.hero-eyebrow', { opacity: 0, y: 14, duration: 0.4 })
+    .from('.hero-h1',      { opacity: 0, y: 22, duration: 0.5 }, '-=0.2')
+    .from('.hero-sub',     { opacity: 0, y: 16, duration: 0.4 }, '-=0.2')
+    .from('.hero-btns',    { opacity: 0, y: 12, duration: 0.4 }, '-=0.15')
+    .from('.receipt',      { opacity: 0, x: 28, scale: 0.97, duration: 0.55 }, '-=0.35')
+
+  // Stats
+  gsap.from('.stat', {
+    opacity: 0, y: 10, stagger: 0.1, duration: 0.4,
+    scrollTrigger: { trigger: '.stats', start: 'top 88%' },
+  })
+
+  // Feature cards
+  gsap.from('.f-card', {
+    opacity: 0, y: 22, stagger: 0.09, duration: 0.45,
+    scrollTrigger: { trigger: '.features-grid', start: 'top 85%' },
+  })
+
+  // Testimonial + CTA
+  gsap.from('.testi-quote, .cta-content', {
+    opacity: 0, y: 18, duration: 0.5,
+    scrollTrigger: { trigger: '.testi', start: 'top 85%' },
+  })
+  gsap.from('.cta-content', {
+    opacity: 0, y: 18, duration: 0.5,
+    scrollTrigger: { trigger: '.cta', start: 'top 88%' },
+  })
+
+  setTimeout(startRotate, 1400)
+})
+
+onUnmounted(() => { if (timer) clearInterval(timer) })
 </script>
 
 <template>
   <div class="page">
 
-    <!-- Navbar -->
-    <header class="header">
-      <div class="container header-inner">
-        <RouterLink to="/" class="wordmark">DagangYuk</RouterLink>
-        <nav class="header-nav" aria-label="Navigasi utama">
-          <a href="#fitur">Fitur</a>
+    <!-- ── Navbar ── -->
+    <header class="nav">
+      <div class="wrap nav-inner">
+        <RouterLink to="/" class="logo">
+          <div class="logo-mark">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <path d="M16 10a4 4 0 01-8 0"/>
+            </svg>
+          </div>
+          <span>DagangYuk</span>
+        </RouterLink>
+
+        <div class="nav-right">
+          <a href="#fitur" class="nav-link">Fitur</a>
+          <ThemeSwitcher />
           <RouterLink to="/login" class="btn-nav">Masuk</RouterLink>
-        </nav>
+        </div>
       </div>
     </header>
 
-    <!-- Hero -->
+    <!-- ── Hero ── -->
     <section class="hero">
-      <div class="container hero-inner">
-        <div class="hero-content">
-          <p class="eyebrow">Aplikasi kasir untuk UMKM</p>
-          <h1>
-            Jualan lebih lancar,<br class="break-md" />
+      <div class="wrap hero-inner">
+        <div class="hero-text">
+          <p class="hero-eyebrow">Aplikasi kasir untuk UMKM</p>
+          <h1 class="hero-h1">
+            Jualan lebih
+            <span class="rw-wrap"><span class="rw">{{ words[wordIndex] }}</span></span>,<br />
             catatan lebih rapi
           </h1>
-          <p class="lead">
-            DagangYuk adalah kasir digital yang dirancang untuk pemilik
-            toko — bukan untuk akuntan. Tidak perlu training, tidak perlu
-            setup berhari-hari.
+          <p class="hero-sub">
+            DagangYuk adalah kasir digital untuk pemilik toko — bukan untuk akuntan.
+            Tidak perlu training, tidak perlu setup berhari-hari.
           </p>
-          <div class="hero-cta">
-            <RouterLink to="/login" class="btn-primary">Coba sekarang</RouterLink>
-            <a href="#fitur" class="btn-text">Pelajari fitur →</a>
+          <div class="hero-btns">
+            <RouterLink to="/login" class="btn-primary">Mulai gratis</RouterLink>
+            <a href="#fitur" class="btn-ghost">Lihat fitur</a>
           </div>
         </div>
 
-        <!-- Mockup sederhana -->
+        <!-- Receipt mockup -->
         <div class="hero-visual" aria-hidden="true">
           <div class="receipt">
-            <div class="receipt-header">
+            <div class="r-top">
               <span class="r-store">Toko Makmur</span>
               <span class="r-date">08 Sep 2026</span>
             </div>
-            <div class="receipt-divider"></div>
-            <div class="receipt-items">
-              <div class="r-item">
-                <span>Indomie Goreng</span>
-                <span>Rp 3.500</span>
-              </div>
-              <div class="r-item">
-                <span>Teh Botol 500ml</span>
-                <span>Rp 5.000</span>
-              </div>
-              <div class="r-item">
-                <span>Roti Tawar</span>
-                <span>Rp 12.000</span>
-              </div>
+            <div class="r-line dashed"></div>
+            <div class="r-items">
+              <div class="r-item"><span>Indomie Goreng</span><span>Rp 3.500</span></div>
+              <div class="r-item"><span>Teh Botol 500ml</span><span>Rp 5.000</span></div>
+              <div class="r-item"><span>Roti Tawar</span><span>Rp 12.000</span></div>
             </div>
-            <div class="receipt-divider"></div>
-            <div class="r-item r-total">
-              <span>Total</span>
-              <strong>Rp 20.500</strong>
+            <div class="r-line"></div>
+            <div class="r-item r-total"><span>Total</span><strong>Rp 20.500</strong></div>
+            <div class="r-pay">
+              <div class="r-item small"><span>Bayar</span><span>Rp 25.000</span></div>
+              <div class="r-item small green"><span>Kembali</span><strong>Rp 4.500</strong></div>
             </div>
-            <div class="receipt-pay">
-              <div class="pay-row">
-                <span>Bayar</span>
-                <span>Rp 25.000</span>
-              </div>
-              <div class="pay-row pay-change">
-                <span>Kembali</span>
-                <strong>Rp 4.500</strong>
-              </div>
-            </div>
-            <div class="receipt-footer">Terima kasih sudah berbelanja</div>
+            <p class="r-thanks">Terima kasih sudah berbelanja</p>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Stats -->
-    <div class="stats-bar">
-      <div class="container stats-inner">
-        <div class="stat-item">
-          <span class="stat-num">500+</span>
-          <span class="stat-label">toko aktif</span>
-        </div>
+    <!-- ── Stats ── -->
+    <div class="stats">
+      <div class="wrap stats-inner">
+        <div class="stat"><strong>500+</strong><span>toko aktif</span></div>
         <div class="stat-sep"></div>
-        <div class="stat-item">
-          <span class="stat-num">1 juta+</span>
-          <span class="stat-label">transaksi diproses</span>
-        </div>
+        <div class="stat"><strong>1 juta+</strong><span>transaksi</span></div>
         <div class="stat-sep"></div>
-        <div class="stat-item">
-          <span class="stat-num">4.8/5</span>
-          <span class="stat-label">kepuasan pengguna</span>
-        </div>
+        <div class="stat"><strong>4.8/5</strong><span>kepuasan pengguna</span></div>
       </div>
     </div>
 
-    <!-- Features -->
+    <!-- ── Features ── -->
     <section class="features" id="fitur">
-      <div class="container">
-        <div class="section-intro">
+      <div class="wrap">
+        <div class="section-head">
           <h2>Yang Anda butuhkan, sudah ada</h2>
-          <p>Tidak lebih, tidak kurang — fitur yang benar-benar dipakai setiap hari.</p>
+          <p>Fitur yang benar-benar dipakai setiap hari, tidak lebih.</p>
         </div>
         <div class="features-grid">
-          <article class="f-card" v-for="(f, i) in features" :key="i">
-            <span class="f-index">{{ String(i + 1).padStart(2, '0') }}</span>
+          <div class="f-card" v-for="f in features" :key="f.num">
+            <span class="f-num">{{ f.num }}</span>
             <h3>{{ f.title }}</h3>
             <p>{{ f.desc }}</p>
-          </article>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- Testimonial -->
+    <!-- ── Testimonial ── -->
     <section class="testi">
-      <div class="container testi-inner">
-        <blockquote>
-          <p>
-            "Dulu saya tulis stok di buku, sering salah hitung. Sekarang pakai
-            DagangYuk sudah tiga bulan, tidak pernah ada selisih lagi."
-          </p>
+      <div class="wrap testi-inner">
+        <blockquote class="testi-quote">
+          <p>"Dulu stok saya catat di buku, sering selisih. Tiga bulan pakai DagangYuk tidak pernah selisih lagi."</p>
           <footer>
-            <div class="testi-avatar">S</div>
-            <div class="testi-who">
-              <span>Sari Wulandari</span>
-              <small>Warung Kelontong Bu Sari, Semarang</small>
+            <div class="t-av">S</div>
+            <div>
+              <strong>Sari Wulandari</strong>
+              <span>Warung Kelontong Bu Sari, Semarang</span>
             </div>
           </footer>
         </blockquote>
       </div>
     </section>
 
-    <!-- CTA -->
+    <!-- ── CTA ── -->
     <section class="cta">
-      <div class="container cta-inner">
-        <h2>Mulai hari ini, gratis</h2>
-        <p>Tidak perlu kartu kredit. Tidak perlu instalasi. Langsung pakai.</p>
+      <div class="wrap cta-content">
+        <div>
+          <h2>Mulai hari ini, gratis</h2>
+          <p>Tidak perlu kartu kredit. Tidak perlu instalasi.</p>
+        </div>
         <RouterLink to="/login" class="btn-primary">Buat akun</RouterLink>
       </div>
     </section>
 
-    <!-- Footer -->
+    <!-- ── Footer ── -->
     <footer class="footer">
-      <div class="container footer-inner">
-        <span class="wordmark">DagangYuk</span>
-        <span class="footer-note">© 2026 DagangYuk. All rights reserved.</span>
+      <div class="wrap footer-inner">
+        <span class="logo-text">DagangYuk</span>
+        <span class="footer-copy">© 2026 DagangYuk</span>
       </div>
     </footer>
 
@@ -175,130 +231,129 @@ const features = [
 </template>
 
 <style scoped>
-/* ─── Tokens ─── */
-:root {
-  --c-ink: #0f0f0f;
-  --c-muted: #6b6b6b;
-  --c-subtle: #999;
-  --c-line: #e8e8e8;
-  --c-surface: #f7f7f7;
-  --c-white: #fff;
-  --r: 8px;
-}
-
-/* ─── Base ─── */
+/* ── Tokens — semua accent dari global :root ── */
 .page {
+  --r: 9px;
   min-height: 100vh;
-  background: var(--c-white);
-  color: var(--c-ink);
-  font-size: 16px;
+  background: var(--white);
+  color: var(--ink);
+  font-size: 15px;
   line-height: 1.6;
 }
 
-.container {
+.wrap {
   width: 100%;
   max-width: 1100px;
   margin-inline: auto;
-  padding-inline: clamp(20px, 5vw, 48px);
+  padding-inline: clamp(18px, 5vw, 48px);
 }
 
-/* ─── Header ─── */
-.header {
+/* ── Nav ── */
+.nav {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--c-line);
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
 }
 
-.header-inner {
+.nav-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   height: 58px;
 }
 
-.wordmark {
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--c-ink);
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 9px;
   text-decoration: none;
+  color: var(--ink);
+}
+
+.logo-mark {
+  width: 30px;
+  height: 30px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.3s;
+}
+
+.logo span {
+  font-size: 16px;
+  font-weight: 700;
   letter-spacing: -0.3px;
 }
 
-.header-nav {
+.nav-right {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 12px;
 }
 
-.header-nav a {
+.nav-link {
   font-size: 14px;
-  color: var(--c-muted);
+  color: var(--muted);
   text-decoration: none;
   transition: color 0.15s;
 }
-
-.header-nav a:hover {
-  color: var(--c-ink);
-}
+.nav-link:hover { color: var(--ink); }
 
 .btn-nav {
-  font-size: 14px !important;
-  font-weight: 600 !important;
-  color: var(--c-ink) !important;
-  border: 1.5px solid var(--c-ink) !important;
-  padding: 6px 16px;
-  border-radius: 6px;
-  transition: background 0.15s, color 0.15s !important;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  padding: 7px 18px;
+  border-radius: 7px;
+  text-decoration: none;
+  transition: background 0.15s;
 }
+.btn-nav:hover { background: var(--accent-dark); }
 
-.btn-nav:hover {
-  background: var(--c-ink) !important;
-  color: var(--c-white) !important;
-}
-
-/* ─── Buttons ─── */
+/* ── Buttons ── */
 .btn-primary {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  background: var(--c-ink);
-  color: var(--c-white);
-  font-size: 15px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14.5px;
   font-weight: 600;
-  padding: 11px 24px;
+  padding: 11px 26px;
   border-radius: var(--r);
   text-decoration: none;
-  transition: opacity 0.15s, transform 0.15s;
+  transition: background 0.15s, transform 0.15s;
   white-space: nowrap;
 }
+.btn-primary:hover { background: var(--accent-dark); transform: translateY(-1px); }
 
-.btn-primary:hover {
-  opacity: 0.82;
-  transform: translateY(-1px);
-}
-
-.btn-text {
+.btn-ghost {
   display: inline-flex;
   align-items: center;
-  font-size: 15px;
-  color: var(--c-muted);
+  color: var(--muted);
+  font-size: 14.5px;
+  font-weight: 500;
+  padding: 11px 26px;
+  border-radius: var(--r);
+  border: 1.5px solid var(--border);
   text-decoration: none;
-  transition: color 0.15s;
+  transition: border-color 0.15s, color 0.15s;
 }
+.btn-ghost:hover { border-color: var(--accent-ring); color: var(--accent); }
 
-.btn-text:hover {
-  color: var(--c-ink);
-}
-
-/* ─── Hero ─── */
+/* ── Hero ── */
 .hero {
-  padding-block: clamp(64px, 10vw, 112px);
-  border-bottom: 1px solid var(--c-line);
+  padding-block: clamp(64px, 10vw, 108px);
+  border-bottom: 1px solid var(--border);
 }
 
 .hero-inner {
@@ -308,330 +363,205 @@ const features = [
   align-items: center;
 }
 
-.eyebrow {
-  font-size: 12px;
-  font-weight: 600;
+.hero-eyebrow {
+  font-size: 11.5px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--c-subtle);
+  letter-spacing: 1.2px;
+  color: var(--accent);
   margin-bottom: 16px;
+  background: var(--accent-bg);
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--accent-ring);
+  transition: color 0.3s, background 0.3s, border-color 0.3s;
 }
 
-.hero-content h1 {
-  font-size: clamp(32px, 4.5vw, 52px);
+.hero-h1 {
+  font-size: clamp(30px, 4.5vw, 52px);
   font-weight: 800;
   line-height: 1.12;
   letter-spacing: -1.5px;
-  color: var(--c-ink);
+  color: var(--ink);
   margin-bottom: 20px;
 }
 
-.lead {
+/* Rotating */
+.rw-wrap {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  min-width: 100px;
+  height: 1.12em;
+  position: relative;
+}
+
+.rw {
+  display: inline-block;
+  color: var(--accent);
+  font-style: italic;
+  will-change: transform, opacity;
+  transition: color 0.3s;
+}
+
+.hero-sub {
   font-size: clamp(15px, 2vw, 17px);
-  color: var(--c-muted);
+  color: var(--muted);
   line-height: 1.75;
   max-width: 460px;
   margin-bottom: 36px;
 }
 
-.hero-cta {
+.hero-btns {
   display: flex;
-  align-items: center;
-  gap: 20px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
-/* ─── Receipt mockup ─── */
-.hero-visual {
-  flex-shrink: 0;
-}
+/* Receipt */
+.hero-visual { flex-shrink: 0; }
 
 .receipt {
-  width: 240px;
-  background: #fff;
-  border: 1px solid var(--c-line);
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
-  font-size: 13px;
+  width: 232px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.07);
+  font-size: 12.5px;
   font-family: 'Courier New', monospace;
 }
 
-.receipt-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
+.r-top { display: flex; justify-content: space-between; margin-bottom: 10px; }
+.r-store { font-weight: 700; font-size: 13px; color: var(--ink); }
+.r-date  { color: var(--subtle); }
 
-.r-store {
-  font-weight: 700;
-  font-size: 14px;
-  color: var(--c-ink);
-  font-family: inherit;
-}
+.r-line { border: none; border-top: 1px solid var(--border); margin-block: 10px; }
+.r-line.dashed { border-top-style: dashed; }
 
-.r-date {
-  color: var(--c-subtle);
-  font-family: inherit;
-}
+.r-items { display: flex; flex-direction: column; gap: 6px; }
 
-.receipt-divider {
-  border: none;
-  border-top: 1px dashed var(--c-line);
-  margin-block: 10px;
-}
+.r-item { display: flex; justify-content: space-between; color: var(--ink); }
+.r-item span:last-child { color: var(--muted); }
+.r-total { font-weight: 700; margin-top: 2px; }
+.r-total strong { color: var(--ink); }
 
-.receipt-items {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
+.r-pay { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.r-item.small { font-size: 11.5px; color: var(--subtle); }
+.r-item.green strong { color: var(--accent); transition: color 0.3s; }
 
-.r-item {
-  display: flex;
-  justify-content: space-between;
-  color: var(--c-ink);
-}
-
-.r-item span:last-child {
-  color: var(--c-muted);
-}
-
-.r-total {
-  font-weight: 600;
-  margin-top: 4px;
-}
-
-.r-total strong {
-  color: var(--c-ink);
-}
-
-.receipt-pay {
-  margin-top: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.pay-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  color: var(--c-subtle);
-}
-
-.pay-change {
-  color: var(--c-ink);
-  font-weight: 600;
-}
-
-.pay-change strong {
-  color: #1a7a4a;
-}
-
-.receipt-footer {
-  margin-top: 14px;
+.r-thanks {
+  margin-top: 12px;
   text-align: center;
   font-size: 11px;
-  color: var(--c-subtle);
-  border-top: 1px dashed var(--c-line);
+  color: var(--subtle);
+  border-top: 1px dashed var(--border);
   padding-top: 10px;
 }
 
-/* ─── Stats ─── */
-.stats-bar {
-  border-bottom: 1px solid var(--c-line);
-  padding-block: 20px;
-}
+/* ── Stats ── */
+.stats { border-bottom: 1px solid var(--border); padding-block: 18px; }
 
 .stats-inner {
   display: flex;
   align-items: center;
-  gap: clamp(20px, 4vw, 48px);
+  gap: clamp(16px, 4vw, 48px);
   flex-wrap: wrap;
 }
 
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
+.stat { display: flex; flex-direction: column; gap: 2px; }
+.stat strong { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; color: var(--ink); }
+.stat span   { font-size: 12px; color: var(--subtle); }
 
-.stat-num {
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: -0.5px;
-  color: var(--c-ink);
-}
+.stat-sep { width: 1px; height: 28px; background: var(--border); flex-shrink: 0; }
 
-.stat-label {
-  font-size: 12px;
-  color: var(--c-subtle);
-}
+/* ── Features ── */
+.features { padding-block: clamp(60px, 8vw, 96px); border-bottom: 1px solid var(--border); }
 
-.stat-sep {
-  width: 1px;
-  height: 28px;
-  background: var(--c-line);
-  flex-shrink: 0;
-}
-
-/* ─── Features ─── */
-.features {
-  padding-block: clamp(64px, 8vw, 96px);
-  border-bottom: 1px solid var(--c-line);
-}
-
-.section-intro {
-  max-width: 520px;
-  margin-bottom: clamp(36px, 5vw, 56px);
-}
-
-.section-intro h2 {
-  font-size: clamp(22px, 3vw, 30px);
-  font-weight: 800;
-  letter-spacing: -0.5px;
-  color: var(--c-ink);
-  margin-bottom: 8px;
-}
-
-.section-intro p {
-  font-size: 15px;
-  color: var(--c-muted);
-}
+.section-head { margin-bottom: clamp(32px, 5vw, 52px); max-width: 520px; }
+.section-head h2 { font-size: clamp(22px, 3vw, 30px); font-weight: 800; letter-spacing: -0.5px; color: var(--ink); margin-bottom: 8px; }
+.section-head p  { font-size: 15px; color: var(--muted); }
 
 .features-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  border-top: 1px solid var(--c-line);
-  border-left: 1px solid var(--c-line);
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
 }
 
 .f-card {
-  padding: clamp(24px, 3vw, 40px);
-  border-right: 1px solid var(--c-line);
-  border-bottom: 1px solid var(--c-line);
+  padding: clamp(22px, 3vw, 38px);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   transition: background 0.15s;
 }
+.f-card:hover { background: var(--surface); }
 
-.f-card:hover {
-  background: var(--c-surface);
-}
-
-.f-index {
+.f-num {
   display: block;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 1.5px;
-  color: var(--c-line);
+  color: var(--accent-ring);
   margin-bottom: 14px;
+  transition: color 0.3s;
 }
 
-.f-card h3 {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--c-ink);
-  margin-bottom: 8px;
-  letter-spacing: -0.2px;
-}
+.f-card h3 { font-size: 16px; font-weight: 700; color: var(--ink); margin-bottom: 8px; letter-spacing: -0.2px; }
+.f-card p  { font-size: 14px; color: var(--muted); line-height: 1.65; }
 
-.f-card p {
-  font-size: 14px;
-  color: var(--c-muted);
-  line-height: 1.65;
-}
+/* ── Testimonial ── */
+.testi { padding-block: clamp(60px, 8vw, 96px); background: var(--surface); border-bottom: 1px solid var(--border); }
+.testi-inner { max-width: 680px; }
+.testi-quote { margin: 0; }
 
-/* ─── Testimonial ─── */
-.testi {
-  padding-block: clamp(64px, 8vw, 96px);
-  border-bottom: 1px solid var(--c-line);
-  background: var(--c-surface);
-}
-
-.testi-inner {
-  max-width: 680px;
-}
-
-blockquote {
-  margin: 0;
-}
-
-blockquote p {
-  font-size: clamp(17px, 2.5vw, 22px);
+.testi-quote p {
+  font-size: clamp(17px, 2.4vw, 22px);
   font-weight: 500;
   line-height: 1.6;
-  color: var(--c-ink);
+  color: var(--ink);
   letter-spacing: -0.2px;
-  margin-bottom: 28px;
+  margin-bottom: 24px;
 }
 
-blockquote footer {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
+.testi-quote footer { display: flex; align-items: center; gap: 12px; }
 
-.testi-avatar {
+.t-av {
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: #d0d0d0;
-  color: var(--c-ink);
+  background: var(--accent-bg);
+  color: var(--accent);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 800;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  border: 2px solid var(--accent-ring);
+  transition: background 0.3s, color 0.3s, border-color 0.3s;
 }
 
-.testi-who {
+.testi-quote footer strong { display: block; font-size: 13.5px; color: var(--ink); }
+.testi-quote footer span   { font-size: 12px; color: var(--subtle); }
+
+/* ── CTA ── */
+.cta { padding-block: clamp(56px, 7vw, 88px); border-bottom: 1px solid var(--border); }
+
+.cta-content {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  flex-wrap: wrap;
 }
 
-.testi-who span {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--c-ink);
-}
+.cta-content h2 { font-size: clamp(20px, 3vw, 28px); font-weight: 800; letter-spacing: -0.5px; color: var(--ink); margin-bottom: 6px; }
+.cta-content p  { font-size: 14.5px; color: var(--muted); }
 
-.testi-who small {
-  font-size: 12px;
-  color: var(--c-subtle);
-}
-
-/* ─── CTA ─── */
-.cta {
-  padding-block: clamp(64px, 8vw, 96px);
-  border-bottom: 1px solid var(--c-line);
-}
-
-.cta-inner {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  max-width: 480px;
-}
-
-.cta h2 {
-  font-size: clamp(22px, 3vw, 30px);
-  font-weight: 800;
-  letter-spacing: -0.5px;
-  color: var(--c-ink);
-}
-
-.cta p {
-  font-size: 15px;
-  color: var(--c-muted);
-  margin-bottom: 4px;
-}
-
-/* ─── Footer ─── */
-.footer {
-  padding-block: 24px;
-}
+/* ── Footer ── */
+.footer { padding-block: 24px; }
 
 .footer-inner {
   display: flex;
@@ -641,42 +571,19 @@ blockquote footer {
   gap: 8px;
 }
 
-.footer-note {
-  font-size: 13px;
-  color: var(--c-subtle);
-}
+.logo-text { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; color: var(--ink); }
+.footer-copy { font-size: 13px; color: var(--subtle); }
 
-/* ─── Responsive ─── */
+/* ── Responsive ── */
 @media (max-width: 800px) {
-  .hero-inner {
-    grid-template-columns: 1fr;
-  }
-
-  .hero-visual {
-    display: none;
-  }
-
-  .break-md {
-    display: none;
-  }
+  .hero-inner { grid-template-columns: 1fr; }
+  .hero-visual { display: none; }
 }
 
 @media (max-width: 560px) {
-  .features-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .stat-sep {
-    display: none;
-  }
-
-  .stats-inner {
-    gap: 16px;
-  }
-
-  .footer-inner {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+  .features-grid { grid-template-columns: 1fr; }
+  .stat-sep { display: none; }
+  .cta-content { flex-direction: column; align-items: flex-start; }
+  .footer-inner { flex-direction: column; align-items: flex-start; }
 }
 </style>
