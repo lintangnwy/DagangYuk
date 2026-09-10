@@ -54,11 +54,20 @@ class CategoryController extends Controller
     }
 
     public function destroy($id)
-    {
-        Category::findOrFail($id)->delete();
+{
+    $category = Category::findOrFail($id);
 
+    if ($category->products()->exists()) {
         return response()->json([
-            'message' => 'Kategori berhasil dihapus'
-        ]);
+            'message' => 'Kategori tidak bisa dihapus karena masih memiliki produk'
+        ], 422);
     }
+
+    $category->delete();
+
+    return response()->json([
+        'message' => 'Kategori berhasil dihapus'
+    ]);
+}
+
 }
