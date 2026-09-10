@@ -8,16 +8,3 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-Route::apiResource('categories', CategoryController::class);
-
-
-Route::resource('categories', CategoryController::class);
-use App\Http\Controllers\ProductController;
-
-Route::resource('products', ProductController::class);
-
-use App\Http\Controllers\TenantController;
-
-Route::resource('tenants', TenantController::class);
-
-Route::resource('users', UserController::class);
