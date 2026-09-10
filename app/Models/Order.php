@@ -20,6 +20,10 @@ class Order extends Model
         'payment_method',
     ];
 
+    protected $casts = [
+        'total_amount' => 'float',
+    ];
+
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);

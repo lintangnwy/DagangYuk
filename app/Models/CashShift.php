@@ -22,6 +22,14 @@ class CashShift extends Model
         'closed_at',
     ];
 
+    protected $casts = [
+        'starting_cash' => 'float',
+        'ending_cash'   => 'float',
+        'expected_cash' => 'float',
+        'opened_at'     => 'datetime',
+        'closed_at'     => 'datetime',
+    ];
+
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);

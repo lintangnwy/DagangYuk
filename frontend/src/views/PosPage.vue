@@ -2,23 +2,21 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { usePosStore, type Product } from '@/stores/pos'
 import { gsap } from 'gsap'
-import ThemeSwitcher from '@/components/ThemeSwitcher.vue'
+import AppLayout from '@/components/AppLayout.vue'
 
 const auth   = useAuthStore()
+const pos    = usePosStore()
 const router = useRouter()
 
 onMounted(async () => {
   await auth.fetchUser()
+  await Promise.all([pos.fetchProducts(), pos.fetchActiveShift()])
   await nextTick()
 
-  gsap.from('.navbar', { opacity: 0, y: -16, duration: 0.4, ease: 'power2.out' })
   gsap.from('.panel-products', { opacity: 0, x: -20, duration: 0.45, ease: 'power2.out', delay: 0.1 })
   gsap.from('.panel-order', { opacity: 0, x: 20, duration: 0.45, ease: 'power2.out', delay: 0.1 })
-  gsap.from('.product-card', {
-    opacity: 0, y: 16, scale: 0.97,
-    duration: 0.35, stagger: 0.04, ease: 'power2.out', delay: 0.25,
-  })
 })
 
 async function logout() {
@@ -26,146 +24,100 @@ async function logout() {
   router.push('/login')
 }
 
-// ── Types ──────────────────────────────────────────────
-interface Product {
-  id: number
-  name: string
-  price: number
-  category: string
-  available: boolean
-}
+// ── UI state ───────────────────────────────────────────
+const isProcessing   = ref(false)
+const successMsg     = ref('')
 
-interface CartItem {
-  product: Product
-  qty: number
-}
+// Modal shift
+const showShiftModal = ref(false)
+const shiftModalMode = ref<'open' | 'close'>('open')
+const startingCash   = ref('0')
+const endingCash     = ref('0')
+const shiftSaving    = ref(false)
+const shiftError     = ref('')
 
-// ── Data ───────────────────────────────────────────────
-const allProducts: Product[] = [
-  { id: 1,  name: 'Nasi Goreng Spesial', price: 25000, category: 'Makanan',  available: true  },
-  { id: 2,  name: 'Mie Ayam Bakso',      price: 20000, category: 'Makanan',  available: true  },
-  { id: 3,  name: 'Soto Ayam',           price: 18000, category: 'Makanan',  available: false },
-  { id: 4,  name: 'Ayam Bakar',          price: 30000, category: 'Makanan',  available: true  },
-  { id: 5,  name: 'Gado-Gado',           price: 15000, category: 'Makanan',  available: true  },
-  { id: 6,  name: 'Pecel Lele',          price: 22000, category: 'Makanan',  available: false },
-  { id: 7,  name: 'Es Teh Manis',        price: 5000,  category: 'Minuman',  available: true  },
-  { id: 8,  name: 'Es Jeruk',            price: 8000,  category: 'Minuman',  available: true  },
-  { id: 9,  name: 'Jus Alpukat',         price: 15000, category: 'Minuman',  available: true  },
-  { id: 10, name: 'Kopi Hitam',          price: 8000,  category: 'Minuman',  available: true  },
-  { id: 11, name: 'Kerupuk',             price: 3000,  category: 'Lainnya',  available: true  },
-  { id: 12, name: 'Tempe Goreng',        price: 5000,  category: 'Lainnya',  available: true  },
-]
+// Modal pembayaran
+const showPayModal   = ref(false)
+const payMethod      = ref<'cash' | 'qris' | 'transfer'>('cash')
 
-const categories   = ['Semua', 'Makanan', 'Minuman', 'Lainnya']
+// ── UI state ───────────────────────────────────────────
 const activeCategory = ref('Semua')
 const searchQuery    = ref('')
-const cart           = ref<CartItem[]>([])
 const customerName   = ref('')
 const orderType      = ref('Dine in')
 const tableNo        = ref('Meja 01')
-const activeNav      = ref('Kasir')
 
-const navItems = ['Dashboard', 'Kasir', 'Riwayat', 'Transaksi', 'Stok']
+// ── Shift actions ──────────────────────────────────────
+function promptOpenShift()  { shiftModalMode.value = 'open';  shiftError.value = ''; startingCash.value = '0'; showShiftModal.value = true }
+function promptCloseShift() { shiftModalMode.value = 'close'; shiftError.value = ''; endingCash.value   = '0'; showShiftModal.value = true }
+
+async function doShiftAction() {
+  shiftSaving.value = true; shiftError.value = ''
+  try {
+    if (shiftModalMode.value === 'open') {
+      await pos.openShift(Number(startingCash.value) || 0)
+    } else {
+      await pos.closeShift(Number(endingCash.value) || 0)
+    }
+    showShiftModal.value = false
+  } catch (e: unknown) {
+    shiftError.value = e instanceof Error ? e.message : 'Gagal.'
+  } finally { shiftSaving.value = false }
+}
 
 // ── Computed ───────────────────────────────────────────
+const categories = computed(() => {
+  const cats = new Set(pos.products.map(p => p.category?.name ?? 'Lainnya'))
+  return ['Semua', ...Array.from(cats)]
+})
+
 const filteredProducts = computed(() => {
-  let list = allProducts
+  let list = pos.products
   if (activeCategory.value !== 'Semua')
-    list = list.filter(p => p.category === activeCategory.value)
+    list = list.filter(p => (p.category?.name ?? 'Lainnya') === activeCategory.value)
   if (searchQuery.value.trim())
     list = list.filter(p => p.name.toLowerCase().includes(searchQuery.value.toLowerCase()))
   return list
 })
 
-const subtotal  = computed(() => cart.value.reduce((s, i) => s + i.product.price * i.qty, 0))
-const tax       = computed(() => Math.round(subtotal.value * 0.08))
-const total     = computed(() => subtotal.value + tax.value)
-const cartCount = computed(() => cart.value.reduce((s, i) => s + i.qty, 0))
+const cart      = computed(() => pos.cart)
+const subtotal  = computed(() => pos.subtotal)
+const tax       = computed(() => pos.tax)
+const total     = computed(() => pos.total)
+const cartCount = computed(() => pos.cartCount)
 
 // ── Cart actions ───────────────────────────────────────
-function addToCart(product: Product) {
-  if (!product.available) return
-  const existing = cart.value.find(i => i.product.id === product.id)
-  if (existing) {
-    existing.qty++
-  } else {
-    cart.value.push({ product, qty: 1 })
-  }
+function addToCart(product: Product) { pos.addToCart(product) }
+function changeQty(item: typeof pos.cart[0], delta: number) { pos.changeQty(item, delta) }
+function clearCart() { pos.clearCart() }
+
+async function processTransaction() {
+  if (!pos.cart.length || isProcessing.value) return
+  if (!pos.hasShift) { promptOpenShift(); return }
+  showPayModal.value = true
 }
 
-function changeQty(item: CartItem, delta: number) {
-  item.qty += delta
-  if (item.qty <= 0) cart.value = cart.value.filter(i => i !== item)
-}
-
-function clearCart() { cart.value = [] }
-
-function processTransaction() {
-  if (!cart.value.length) return
-  alert(`Transaksi berhasil!\nTotal: ${fmt(total.value)}`)
-  clearCart()
-  customerName.value = ''
+async function confirmPay() {
+  isProcessing.value = true; successMsg.value = ''
+  try {
+    await pos.checkout(payMethod.value)
+    showPayModal.value = false
+    successMsg.value   = `Transaksi berhasil! Total: ${fmt(total.value)}`
+    customerName.value = ''
+    setTimeout(() => { successMsg.value = '' }, 4000)
+  } catch (e: unknown) {
+    alert(e instanceof Error ? e.message : 'Transaksi gagal.')
+  } finally { isProcessing.value = false }
 }
 
 // ── Utils ──────────────────────────────────────────────
-function fmt(n: number) {
-  return 'Rp\u00A0' + n.toLocaleString('id-ID')
-}
-
-function initial(name: string) {
-  return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'U'
-}
+function fmt(n: number) { return 'Rp\u00A0' + n.toLocaleString('id-ID') }
 </script>
 
 <template>
-  <div class="pos">
-
-    <!-- ══ Navbar ══ -->
-    <header class="navbar">
-      <div class="nav-brand">
-        <div class="brand-mark">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
-            <line x1="3" y1="6" x2="21" y2="6"/>
-            <path d="M16 10a4 4 0 01-8 0"/>
-          </svg>
-        </div>
-        <span class="brand-label">DagangYuk</span>
-      </div>
-
-      <nav class="nav-menu">
-        <button
-          v-for="item in navItems" :key="item"
-          class="nav-btn" :class="{ 'nav-btn--active': activeNav === item }"
-          @click="activeNav = item"
-        >{{ item }}</button>
-      </nav>
-
-      <div class="nav-actions">
-        <ThemeSwitcher />
-        <button class="icon-btn" aria-label="Notifikasi">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-            <path d="M13.73 21a2 2 0 01-3.46 0"/>
-          </svg>
-        </button>
-        <button class="icon-btn" aria-label="Pengaturan">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
-          </svg>
-        </button>
-        <button class="avatar-btn" @click="logout" :title="'Keluar — ' + auth.user?.name">
-          {{ initial(auth.user?.name ?? 'User') }}
-        </button>
-      </div>
-    </header>
-
-    <!-- ══ Body ══ -->
-    <div class="pos-body">
+  <AppLayout :full-height="true">
+    <template #title>Kasir</template>
+    <div class="pos-wrap">
 
       <!-- ── Panel kiri: Produk ── -->
       <section class="panel-products">
@@ -193,26 +145,38 @@ function initial(name: string) {
         </div>
 
         <!-- Grid -->
-        <div class="grid" v-if="filteredProducts.length">
+        <div v-if="pos.loading" class="empty">
+          <span class="spinner-lg"></span> Memuat produk...
+        </div>
+        <div v-else-if="pos.error" class="empty err">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <span>{{ pos.error }}</span>
+          <small>Pastikan <code>php artisan serve</code> sudah berjalan</small>
+          <button class="btn-retry" @click="pos.fetchProducts()">↺ Coba lagi</button>
+        </div>
+        <div class="grid" v-else-if="filteredProducts.length">
           <button
             v-for="p in filteredProducts" :key="p.id"
-            class="product-card" :class="{ 'product-card--out': !p.available }"
+            class="product-card" :class="{ 'product-card--out': p.stock <= 0 }"
             @click="addToCart(p)"
-            :disabled="!p.available"
+            :disabled="p.stock <= 0"
             :aria-label="'Tambah ' + p.name"
           >
-            <!-- Gambar placeholder -->
-            <div class="card-img">
-              <div class="card-initial">{{ p.name.charAt(0) }}</div>
-              <span class="card-badge" :class="p.available ? 'badge--on' : 'badge--off'">
-                {{ p.available ? 'Tersedia' : 'Habis' }}
+            <!-- Gambar / foto -->
+            <div class="card-img"
+              :style="p.image ? `background-image:url(http://localhost:8000/storage/${p.image})` : ''">
+              <div class="card-initial" v-if="!p.image">{{ p.name.charAt(0) }}</div>
+              <span class="card-badge" :class="p.stock > 0 ? 'badge--on' : 'badge--off'">
+                {{ p.stock > 0 ? 'Tersedia' : 'Habis' }}
               </span>
             </div>
             <div class="card-body">
               <p class="card-name">{{ p.name }}</p>
               <div class="card-foot">
                 <span class="card-price">{{ fmt(p.price) }}</span>
-                <span class="card-add" v-if="p.available">+ Tambah</span>
+                <span class="card-add" v-if="p.stock > 0">+ Tambah</span>
               </div>
             </div>
           </button>
@@ -223,6 +187,16 @@ function initial(name: string) {
 
       <!-- ── Panel kanan: Order ── -->
       <aside class="panel-order">
+
+        <!-- Status Shift -->
+        <div class="shift-bar" :class="pos.hasShift ? 'shift-open' : 'shift-closed'">
+          <div class="shift-info">
+            <span class="shift-dot"></span>
+            <span>{{ pos.hasShift ? 'Shift Aktif' : 'Shift Belum Dibuka' }}</span>
+          </div>
+          <button v-if="!pos.hasShift" class="shift-btn open-btn" @click="promptOpenShift">Buka Shift</button>
+          <button v-else class="shift-btn close-btn" @click="promptCloseShift">Tutup</button>
+        </div>
 
         <div class="order-head">
           <h2 class="panel-title">Detail Pesanan</h2>
@@ -300,149 +274,112 @@ function initial(name: string) {
           </div>
         </div>
 
-        <button class="btn-pay" :disabled="!cart.length" @click="processTransaction">
+        <button class="btn-pay"
+          :disabled="!cart.length || isProcessing"
+          :class="{ 'btn-pay--no-shift': !pos.hasShift }"
+          @click="processTransaction">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <rect x="1" y="4" width="22" height="16" rx="2"/>
             <line x1="1" y1="10" x2="23" y2="10"/>
           </svg>
-          Proses Transaksi
+          {{ pos.hasShift ? 'Proses Transaksi' : 'Buka Shift untuk Transaksi' }}
         </button>
+
+        <!-- Success banner -->
+        <Transition name="success">
+          <div v-if="successMsg" class="success-msg">✓ {{ successMsg }}</div>
+        </Transition>
 
       </aside>
     </div>
-  </div>
+
+    <!-- ══ MODAL BUKA / TUTUP SHIFT ══ -->
+    <Transition name="modal">
+      <div v-if="showShiftModal" class="modal-overlay" @click.self="showShiftModal = false">
+        <div class="modal-box">
+          <div class="modal-hd">
+            <h2>{{ shiftModalMode === 'open' ? '🔓 Buka Shift Kasir' : '🔒 Tutup Shift Kasir' }}</h2>
+            <button class="modal-x" @click="showShiftModal = false">✕</button>
+          </div>
+          <div class="modal-bd">
+            <div v-if="shiftModalMode === 'open'">
+              <p class="modal-desc">Masukkan jumlah uang tunai awal di laci kasir sebelum mulai berjualan.</p>
+              <div class="mfield">
+                <label>Modal Awal (Rp)</label>
+                <input v-model="startingCash" type="number" min="0" step="1000" placeholder="0" />
+              </div>
+            </div>
+            <div v-else>
+              <p class="modal-desc">Masukkan jumlah uang tunai yang ada di laci kasir saat ini untuk rekonsiliasi.</p>
+              <div class="mfield">
+                <label>Uang di Laci (Rp)</label>
+                <input v-model="endingCash" type="number" min="0" step="1000" placeholder="0" />
+              </div>
+            </div>
+            <div v-if="shiftError" class="modal-err">{{ shiftError }}</div>
+          </div>
+          <div class="modal-ft">
+            <button class="mbtn-ghost" @click="showShiftModal = false">Batal</button>
+            <button class="mbtn-primary" :disabled="shiftSaving" @click="doShiftAction">
+              <span v-if="shiftSaving" class="mspin"></span>
+              {{ shiftSaving ? 'Memproses...' : (shiftModalMode === 'open' ? 'Buka Shift' : 'Tutup Shift') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- ══ MODAL PEMBAYARAN ══ -->
+    <Transition name="modal">
+      <div v-if="showPayModal" class="modal-overlay" @click.self="showPayModal = false">
+        <div class="modal-box">
+          <div class="modal-hd">
+            <h2>💳 Pilih Metode Pembayaran</h2>
+            <button class="modal-x" @click="showPayModal = false">✕</button>
+          </div>
+          <div class="modal-bd">
+            <p class="modal-desc">Total yang harus dibayar: <strong>{{ fmt(total) }}</strong></p>
+            <div class="pay-options">
+              <button
+                v-for="m in [{ key:'cash', label:'Tunai', icon:'💵' }, { key:'qris', label:'QRIS', icon:'📱' }, { key:'transfer', label:'Transfer', icon:'🏦' }]"
+                :key="m.key"
+                class="pay-opt"
+                :class="{ active: payMethod === m.key }"
+                @click="payMethod = m.key as 'cash'|'qris'|'transfer'"
+              >
+                <span class="pay-icon">{{ m.icon }}</span>
+                <span>{{ m.label }}</span>
+              </button>
+            </div>
+          </div>
+          <div class="modal-ft">
+            <button class="mbtn-ghost" @click="showPayModal = false">Batal</button>
+            <button class="mbtn-primary" :disabled="isProcessing" @click="confirmPay">
+              <span v-if="isProcessing" class="mspin"></span>
+              {{ isProcessing ? 'Memproses...' : `Bayar ${fmt(total)}` }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+  </AppLayout>
 </template>
 
 <style scoped>
 /* ── Reset ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* ── Root ── */
-.pos {
+/* ── Wrapper inside AppLayout ── */
+.pos-wrap {
   --radius: 10px;
-
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  background: var(--surface);
-  font-size: 14px;
-  color: var(--ink);
-}
-
-/* ── Navbar ── */
-.navbar {
-  height: 58px;
-  background: var(--white);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 0 20px;
-  position: sticky;
-  top: 0;
-  z-index: 50;
-}
-
-.nav-brand {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  flex-shrink: 0;
-}
-
-.brand-mark {
-  width: 32px;
-  height: 32px;
-  background: var(--accent);
-  color: #fff;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.3s;
-}
-
-.brand-label {
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: -0.3px;
-  color: var(--ink);
-}
-
-.nav-menu {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex: 1;
-}
-
-.nav-btn {
-  background: none;
-  border: none;
-  padding: 6px 14px;
-  border-radius: 7px;
-  font-size: 13.5px;
-  font-weight: 500;
-  color: var(--muted);
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-  white-space: nowrap;
-}
-
-.nav-btn:hover { background: var(--surface); color: var(--ink); }
-
-.nav-btn--active {
-  background: var(--accent);
-  color: #fff !important;
-  font-weight: 600;
-}
-
-.nav-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: auto;
-}
-
-.icon-btn {
-  width: 34px;
-  height: 34px;
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--muted);
-  transition: background 0.15s, color 0.15s;
-}
-
-.icon-btn:hover { background: var(--surface); color: var(--ink); }
-
-.avatar-btn {
-  width: 34px;
-  height: 34px;
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  border-radius: 50%;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-
-.avatar-btn:hover { opacity: 0.85; }
-
-/* ── Body ── */
-.pos-body {
   display: grid;
   grid-template-columns: 1fr 300px;
-  flex: 1;
+  height: 100%;
   min-height: 0;
-  height: calc(100dvh - 58px);
+  font-size: 14px;
+  color: var(--ink);
 }
 
 /* ── Panel produk ── */
@@ -452,6 +389,7 @@ function initial(name: string) {
   gap: 14px;
   padding: 18px 16px 18px 20px;
   overflow-y: auto;
+  background: var(--surface);
 }
 
 .toolbar {
@@ -559,6 +497,8 @@ function initial(name: string) {
 .card-img {
   height: 108px;
   background: var(--surface);
+  background-size: cover;
+  background-position: center;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -632,11 +572,51 @@ function initial(name: string) {
 }
 
 .empty {
+  grid-column: 1 / -1;
   text-align: center;
   padding: 48px 0;
   color: #d1d5db;
   font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
 }
+
+.empty.err { color: #ef4444; }
+.empty.err span { font-size: 14px; font-weight: 600; }
+.empty.err small { font-size: 12px; color: var(--muted); }
+.empty.err code {
+  background: var(--surface);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--ink);
+}
+
+.spinner-lg {
+  width: 24px;
+  height: 24px;
+  border: 2.5px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin-lg 0.7s linear infinite;
+}
+
+@keyframes spin-lg { to { transform: rotate(360deg); } }
+
+.btn-retry {
+  background: none;
+  border: 1.5px solid var(--border);
+  color: var(--muted);
+  padding: 6px 16px;
+  border-radius: 7px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn-retry:hover { border-color: var(--accent); color: var(--accent); }
 
 /* ── Panel order ── */
 .panel-order {
@@ -902,6 +882,26 @@ function initial(name: string) {
   box-shadow: none;
 }
 
+.btn-pay--no-shift {
+  background: var(--muted) !important;
+}
+
+/* Success banner */
+.success-msg {
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-ring);
+  color: var(--accent-dark);
+  font-size: 13px; font-weight: 600;
+  padding: 10px 14px; border-radius: 8px;
+  text-align: center; flex-shrink: 0;
+  transition: background 0.3s, color 0.3s, border-color 0.3s;
+}
+
+.success-enter-active { transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+.success-leave-active  { transition: all 0.2s ease-in; }
+.success-enter-from   { opacity: 0; transform: translateY(8px) scale(0.97); }
+.success-leave-to     { opacity: 0; transform: translateY(-4px); }
+
 /* ── Cart TransitionGroup ── */
 .cart-enter-active { transition: all 0.25s cubic-bezier(0.34,1.56,0.64,1); }
 .cart-leave-active  { transition: all 0.18s ease-in; }
@@ -911,11 +911,11 @@ function initial(name: string) {
 
 /* ── Responsive ── */
 @media (max-width: 960px) {
-  .pos-body { grid-template-columns: 1fr 280px; }
+  .pos-wrap { grid-template-columns: 1fr 280px; }
 }
 
 @media (max-width: 768px) {
-  .pos-body {
+  .pos-wrap {
     grid-template-columns: 1fr;
     height: auto;
     overflow: visible;
@@ -926,15 +926,64 @@ function initial(name: string) {
     border-top: 1px solid var(--border);
     max-height: none;
   }
-
-  .nav-menu .nav-btn:not(.nav-btn--active) { display: none; }
 }
 
 @media (max-width: 480px) {
-  .navbar { padding: 0 12px; gap: 10px; }
   .panel-products { padding: 14px 12px; }
   .grid { grid-template-columns: repeat(2, 1fr); }
   .search-wrap { max-width: 160px; }
-  .brand-label { display: none; }
 }
+
+/* ── Shift bar ── */
+.shift-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 14px; border-bottom: 1px solid var(--border);
+  font-size: 12.5px; font-weight: 600; gap: 8px;
+}
+.shift-bar.shift-open   { background: #f0fdf4; color: #15803d; }
+.shift-bar.shift-closed { background: #fef9c3; color: #92400e; }
+.shift-info { display: flex; align-items: center; gap: 7px; }
+.shift-dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.shift-open .shift-dot   { background: #16a34a; box-shadow: 0 0 0 2px #bbf7d0; }
+.shift-closed .shift-dot { background: #d97706; box-shadow: 0 0 0 2px #fde68a; }
+.shift-btn { border: none; cursor: pointer; font-size: 11.5px; font-weight: 700; padding: 4px 12px; border-radius: 6px; transition: opacity 0.15s; }
+.shift-btn.open-btn  { background: #16a34a; color: #fff; }
+.shift-btn.close-btn { background: #d97706; color: #fff; }
+.shift-btn:hover { opacity: 0.85; }
+
+/* ── Modal shift/pay ── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+  display: flex; align-items: center; justify-content: center; z-index: 300; padding: 20px;
+}
+.modal-box { background: var(--white); border-radius: 14px; width: 100%; max-width: 420px; box-shadow: 0 24px 64px rgba(0,0,0,0.15); }
+.modal-hd { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px 14px; border-bottom: 1px solid var(--border); }
+.modal-hd h2 { font-size: 16px; font-weight: 800; color: var(--ink); }
+.modal-x { background: none; border: none; font-size: 16px; cursor: pointer; color: var(--muted); width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: background 0.15s; }
+.modal-x:hover { background: var(--surface); }
+.modal-bd { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; }
+.modal-desc { font-size: 13.5px; color: var(--muted); line-height: 1.5; }
+.modal-desc strong { color: var(--ink); font-weight: 700; }
+.modal-err { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; font-size: 13px; padding: 8px 12px; border-radius: 6px; }
+.mfield { display: flex; flex-direction: column; gap: 6px; }
+.mfield label { font-size: 12.5px; font-weight: 600; color: #374151; }
+.mfield input { height: 42px; padding: 0 14px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 15px; font-weight: 600; color: var(--ink); background: var(--white); outline: none; transition: border-color 0.15s, box-shadow 0.15s; }
+.mfield input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
+.pay-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.pay-opt { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 8px; border: 2px solid var(--border); border-radius: 10px; cursor: pointer; background: var(--surface); font-size: 13px; font-weight: 600; color: var(--muted); transition: all 0.15s; }
+.pay-opt:hover { border-color: var(--accent-ring); color: var(--accent); background: var(--accent-bg); }
+.pay-opt.active { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+.pay-icon { font-size: 26px; }
+.modal-ft { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 22px; border-top: 1px solid var(--border); }
+.mbtn-primary { background: var(--accent); color: #fff; border: none; padding: 10px 22px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.15s; display: flex; align-items: center; gap: 8px; }
+.mbtn-primary:hover:not(:disabled) { background: var(--accent-dark); }
+.mbtn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+.mbtn-ghost { background: none; border: 1.5px solid var(--border); color: var(--muted); padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: border-color 0.15s; }
+.mbtn-ghost:hover { border-color: var(--accent-ring); }
+.mspin { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: mspin 0.55s linear infinite; }
+@keyframes mspin { to { transform: rotate(360deg); } }
+.modal-enter-active { transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1); }
+.modal-leave-active  { transition: all 0.16s ease-in; }
+.modal-enter-from   { opacity: 0; transform: scale(0.95) translateY(8px); }
+.modal-leave-to     { opacity: 0; transform: scale(0.97); }
 </style>

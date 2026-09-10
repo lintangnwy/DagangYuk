@@ -12,7 +12,6 @@ class Category extends Model
     protected $fillable = [
         'tenant_id',
         'name',
-        'description',
     ];
 
     public function tenant()
