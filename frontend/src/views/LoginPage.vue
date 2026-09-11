@@ -32,7 +32,7 @@ async function handleLogin() {
   isLoading.value    = true
   try {
     await auth.login(email.value, password.value)
-    router.push('/pos')
+    router.push('/dashboard')
   } catch (err: unknown) {
     errorMessage.value = err instanceof Error ? err.message : 'Login gagal.'
   } finally {

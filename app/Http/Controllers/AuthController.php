@@ -27,15 +27,17 @@ class AuthController extends Controller
         }
 
         /** @var User $user */
-        $user  = Auth::user();
+        $user  = Auth::user()->load('role', 'tenant');
         $token = $user->createToken('web')->plainTextToken;
 
         return response()->json([
             'token' => $token,
             'user'  => [
-                'id'    => $user->id,
-                'name'  => $user->name,
-                'email' => $user->email,
+                'id'        => $user->id,
+                'name'      => $user->name,
+                'email'     => $user->email,
+                'role'      => $user->role?->name,
+                'tenant_id' => $user->tenant_id,
             ],
         ]);
     }

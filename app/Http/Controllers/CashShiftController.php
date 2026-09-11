@@ -44,7 +44,7 @@ class CashShiftController extends Controller
 
         return response()->json([
             'message' => 'Shift berhasil dibuka',
-            'data' => $shift
+            'data' => $shift->load('user', 'tenant')
         ], 201);
     }
 

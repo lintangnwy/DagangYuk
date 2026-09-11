@@ -10,7 +10,9 @@ class OrderItem extends Model
 {
     use HasFactory;
 
-    public $timestamps = false;
+    // Migration order_items pakai timestamps() — biarkan default true
+    // kecuali nanti migration diubah tidak pakai timestamps
+    public $timestamps = true;
 
     protected $fillable = [
         'order_id',

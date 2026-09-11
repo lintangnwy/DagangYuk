@@ -1,84 +1,102 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import api from '../utils/axios'
 
-interface User {
+export interface AuthUser {
   id: number
   name: string
   email: string
+  role?: string
+  tenant_id?: number | null
 }
 
-const API_BASE = 'http://localhost:8000/api'
+const API_BASE  = 'http://localhost:8000/api'
+const USER_KEY  = 'dagang_user'
+const TOKEN_KEY = 'dagang_token'
 
 export const useAuthStore = defineStore('auth', () => {
-  const user  = ref<User | null>(null)
-  const token = ref<string | null>(localStorage.getItem('token'))
+  // Cek key baru dulu, fallback ke key lama
+  const savedToken = localStorage.getItem(TOKEN_KEY) ?? localStorage.getItem('token')
+  const savedUser  = localStorage.getItem(USER_KEY)  ?? localStorage.getItem('user')
 
-  function setToken(t: string) {
+  const user  = ref<AuthUser | null>(savedUser ? JSON.parse(savedUser) : null)
+  const token = ref<string | null>(savedToken)
+
+  const isAdmin      = computed(() =>
+    user.value?.role === 'admin' || user.value?.role === 'super_admin'
+  )
+  const isSuperAdmin = computed(() => user.value?.role === 'super_admin')
+
+  function setSession(t: string, u: AuthUser) {
     token.value = t
-    localStorage.setItem('token', t)
+    user.value  = u
+    localStorage.setItem(TOKEN_KEY, t)
+    localStorage.setItem(USER_KEY,  JSON.stringify(u))
   }
 
-  function clearToken() {
+  function clearSession() {
     token.value = null
+    user.value  = null
+    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(USER_KEY)
+    // bersihkan key lama jika ada
     localStorage.removeItem('token')
+    localStorage.removeItem('user')
   }
 
   async function login(email: string, password: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
-    })
-
-    const data = await res.json()
-
-    if (!res.ok) {
-      // Laravel validation error → ambil pesan pertama
-      const msg =
-        data?.errors?.email?.[0] ??
-        data?.errors?.password?.[0] ??
-        data?.message ??
-        'Login gagal.'
-      throw new Error(msg)
+    try {
+      const res = await api.post('/login', { email, password })
+      const data = res.data
+      
+      setSession(data.data.token, {
+        id:        data.data.user.id,
+        name:      data.data.user.name,
+        email:     data.data.user.email,
+        role:      data.data.user.role?.name ?? data.data.user.role_id,
+        tenant_id: data.data.user.tenant_id,
+      })
+    } catch (err: any) {
+      throw new Error(
+        err.response?.data?.message || 'Login gagal.'
+      )
     }
-
-    setToken(data.token)
-    user.value = data.user
   }
 
   async function logout(): Promise<void> {
     if (token.value) {
-      await fetch(`${API_BASE}/logout`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token.value}`,
-          Accept: 'application/json',
-        },
-      }).catch(() => {})
+      try {
+        await api.post('/logout')
+      } catch (e) {}
     }
-    clearToken()
-    user.value = null
+    clearSession()
   }
 
   async function fetchUser(): Promise<void> {
     if (!token.value) return
-    const res = await fetch(`${API_BASE}/user`, {
-      headers: {
-        Authorization: `Bearer ${token.value}`,
-        Accept: 'application/json',
-      },
-    })
-    if (res.ok) {
-      user.value = await res.json()
-    } else {
-      clearToken()
+    try {
+      const res = await api.get('/user')
+      const data = res.data
+      const u: AuthUser = {
+        id:        data.id,
+        name:      data.name,
+        email:     data.email,
+        role:      data.role?.name ?? data.role,
+        tenant_id: data.tenant_id,
+      }
+      user.value = u
+      localStorage.setItem(USER_KEY, JSON.stringify(u))
+    } catch (e) {
+      clearSession()
     }
   }
 
   const isLoggedIn = () => !!token.value
 
-  return { user, token, login, logout, fetchUser, isLoggedIn }
+  // Auto-fetch user jika token ada tapi user belum di-load
+  if (token.value && !user.value) {
+    fetchUser()
+  }
+
+  return { user, token, isAdmin, isSuperAdmin, login, logout, fetchUser, isLoggedIn, clearSession }
 })

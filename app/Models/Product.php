@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Product extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToTenant;
 
     protected $fillable = [
         'tenant_id',
@@ -17,15 +20,27 @@ class Product extends Model
         'cost_price',
         'price',
         'stock',
+        'image',
     ];
 
-    public function tenant()
+    protected $casts = [
+        'price'      => 'float',
+        'cost_price' => 'float',
+        'stock'      => 'integer',
+    ];
+
+    public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
     }
 
-    public function category()
+    public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function orderItems(): HasMany
+    {
+        return $this->hasMany(OrderItem::class);
     }
 }

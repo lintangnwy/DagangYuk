@@ -14,7 +14,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->api(prepend: [
+            \Illuminate\Http\Middleware\HandleCors::class,
+        ]);
+
+        $middleware->alias([
+            'role' => \App\Http\Middleware\RequireRole::class,
+            'check_tenant' => \App\Http\Middleware\CheckTenant::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
