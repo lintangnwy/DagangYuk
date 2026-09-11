@@ -87,6 +87,10 @@ class DashboardController extends Controller
                 'low_stock' => $lowStockCount,
                 'out'       => $outOfStockCount,
             ],
+            'tenants' => is_null($tenantId) ? [
+                'total'  => \App\Models\Tenant::count(),
+                'active' => \App\Models\Tenant::where('is_active', true)->count(),
+            ] : null,
             'chart'         => $chartData,
             'top_products'  => $topProducts,
             'recent_orders' => $recentOrders,

@@ -26,6 +26,7 @@ class OrderController extends Controller
         $data = $request->validate([
             'cash_shift_id'              => 'required|exists:cash_shifts,id',
             'payment_method'             => 'required|in:cash,qris,transfer',
+            'discount_amount'            => 'nullable|numeric|min:0',
             'products'                   => 'required|array|min:1',
             'products.*.product_id'      => 'required|exists:products,id',
             'products.*.quantity'        => 'required|integer|min:1',
@@ -60,19 +61,33 @@ class OrderController extends Controller
                     ];
                 }
 
-                // Invoice number unik dengan DB lock aman
-                $invoiceNumber = 'INV-' . now()->format('Ymd') . '-' . str_pad(
-                    Order::whereDate('created_at', today())->lockForUpdate()->count() + 1,
-                    4, '0', STR_PAD_LEFT
-                );
+                $discountAmount = min((float) ($data['discount_amount'] ?? 0), $total);
+                $finalTotal = max(0, $total - $discountAmount);
+
+                // Invoice number unik — ambil sequence terakhir hari ini (GLOBAL, tanpa tenant scope)
+                $today = now()->format('Ymd');
+                $lastInvoice = Order::withoutGlobalScopes()
+                    ->where('invoice_number', 'like', "INV-{$today}-%")
+                    ->orderByDesc('invoice_number')
+                    ->lockForUpdate()
+                    ->value('invoice_number');
+
+                $nextSeq = 1;
+                if ($lastInvoice) {
+                    $lastSeq = (int) substr($lastInvoice, -4);
+                    $nextSeq = $lastSeq + 1;
+                }
+
+                $invoiceNumber = "INV-{$today}-" . str_pad($nextSeq, 4, '0', STR_PAD_LEFT);
 
                 $order = Order::create([
-                    'tenant_id'      => $shift->tenant_id,
-                    'user_id'        => Auth::id(),
-                    'cash_shift_id'  => $shift->id,
-                    'invoice_number' => $invoiceNumber,
-                    'total_amount'   => $total,
-                    'payment_method' => $data['payment_method'],
+                    'tenant_id'       => $shift->tenant_id,
+                    'user_id'         => Auth::id(),
+                    'cash_shift_id'   => $shift->id,
+                    'invoice_number'  => $invoiceNumber,
+                    'total_amount'    => $finalTotal,
+                    'discount_amount' => $discountAmount,
+                    'payment_method'  => $data['payment_method'],
                 ]);
 
                 foreach ($items as $item) {

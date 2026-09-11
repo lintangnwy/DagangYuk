@@ -1,8 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useAuthStore } from './auth'
-
-const API = 'http://localhost:8000/api'
+import api from '../utils/axios'
 
 export interface Product {
   id: number
@@ -49,23 +48,14 @@ export const usePosStore = defineStore('pos', () => {
   const cartCount = computed(() => cart.value.reduce((s, i) => s + i.qty, 0))
   const hasShift  = computed(() => !!activeShift.value)
 
-  function h(): HeadersInit {
-    return {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      Authorization: `Bearer ${auth.token}`,
-    }
-  }
-
   // ── Products ──────────────────────────────────────
   async function fetchProducts() {
     loading.value = true; error.value = null
     try {
-      const res = await fetch(`${API}/products`, { headers: h() })
-      if (!res.ok) throw new Error('Gagal memuat produk.')
-      products.value = await res.json()
-    } catch (e: unknown) {
-      error.value = e instanceof Error ? e.message : 'Error.'
+      const res = await api.get('/products')
+      products.value = res.data
+    } catch (e: any) {
+      error.value = e.response?.data?.message || e.message || 'Error fetching products.'
     } finally { loading.value = false }
   }
 
@@ -73,10 +63,8 @@ export const usePosStore = defineStore('pos', () => {
   async function fetchActiveShift() {
     shiftLoading.value = true
     try {
-      const res = await fetch(`${API}/cash-shifts`, { headers: h() })
-      if (!res.ok) return
-      const shifts: CashShift[] = await res.json()
-      // Cari shift milik user ini yang statusnya open
+      const res = await api.get('/cash-shifts')
+      const shifts: CashShift[] = res.data
       activeShift.value = shifts.find(
         s => s.status === 'open' && s.user_id === auth.user?.id
       ) ?? null
@@ -86,26 +74,22 @@ export const usePosStore = defineStore('pos', () => {
 
   async function openShift(startingCash: number): Promise<void> {
     const tenantId = auth.user?.tenant_id ?? 1
-    const res = await fetch(`${API}/cash-shifts`, {
-      method: 'POST',
-      headers: h(),
-      body: JSON.stringify({ tenant_id: tenantId, starting_cash: startingCash }),
-    })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.message ?? 'Gagal membuka shift.')
-    activeShift.value = data.data
+    try {
+      const res = await api.post('/cash-shifts', { tenant_id: tenantId, starting_cash: startingCash })
+      activeShift.value = res.data.data
+    } catch (e: any) {
+      throw new Error(e.response?.data?.message ?? 'Gagal membuka shift.')
+    }
   }
 
   async function closeShift(endingCash: number): Promise<void> {
     if (!activeShift.value) throw new Error('Tidak ada shift aktif.')
-    const res = await fetch(`${API}/cash-shifts/${activeShift.value.id}/close`, {
-      method: 'PUT',
-      headers: h(),
-      body: JSON.stringify({ ending_cash: endingCash }),
-    })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.message ?? 'Gagal menutup shift.')
-    activeShift.value = null
+    try {
+      const res = await api.put(`/cash-shifts/${activeShift.value.id}/close`, { ending_cash: endingCash })
+      activeShift.value = null
+    } catch (e: any) {
+      throw new Error(e.response?.data?.message ?? 'Gagal menutup shift.')
+    }
   }
 
   // ── Cart ──────────────────────────────────────────
@@ -131,36 +115,34 @@ export const usePosStore = defineStore('pos', () => {
   function clearCart() { cart.value = [] }
 
   // ── Checkout ──────────────────────────────────────
-  async function checkout(paymentMethod: 'cash' | 'qris' | 'transfer') {
+  async function checkout(paymentMethod: 'cash' | 'qris' | 'transfer', discountAmount: number = 0) {
     if (!cart.value.length) throw new Error('Keranjang kosong.')
     if (!activeShift.value) throw new Error('Buka shift kasir terlebih dahulu.')
 
     const body = {
-      cash_shift_id:  activeShift.value.id,
-      payment_method: paymentMethod,
+      cash_shift_id:   activeShift.value.id,
+      payment_method:  paymentMethod,
+      discount_amount: discountAmount,
       products: cart.value.map(i => ({
         product_id: i.product.id,
         quantity:   i.qty,
       })),
     }
 
-    const res = await fetch(`${API}/orders`, {
-      method: 'POST',
-      headers: h(),
-      body: JSON.stringify(body),
-    })
+    try {
+      const res = await api.post('/orders', body)
+      
+      // Update stok lokal
+      cart.value.forEach(item => {
+        const p = products.value.find(p => p.id === item.product.id)
+        if (p) p.stock -= item.qty
+      })
 
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.message ?? 'Transaksi gagal.')
-
-    // Update stok lokal
-    cart.value.forEach(item => {
-      const p = products.value.find(p => p.id === item.product.id)
-      if (p) p.stock -= item.qty
-    })
-
-    clearCart()
-    return data
+      clearCart()
+      return res.data
+    } catch (e: any) {
+      throw new Error(e.response?.data?.message ?? 'Transaksi gagal.')
+    }
   }
 
   return {

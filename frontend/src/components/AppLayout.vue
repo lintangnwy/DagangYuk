@@ -23,27 +23,33 @@ const navGroups = computed(() => {
       items: [
         { label: 'Dashboard', icon: 'dashboard', to: '/dashboard' },
       ],
-    },
-    {
-      label: 'Transaksi',
-      items: [
-        { label: 'Kasir',           icon: 'pos',     to: '/pos' },
-        { label: 'Riwayat Pesanan', icon: 'history', to: '/orders' },
-      ],
-    },
-    {
-      label: 'Inventaris',
-      items: [
-        { label: 'Produk',    icon: 'box',      to: '/products' },
-        { label: 'Kategori',  icon: 'category', to: '/categories' },
-      ],
-    },
+    }
   ]
+  if (!auth.isSuperAdmin) {
+    groups.push(
+      {
+        label: 'Transaksi',
+        items: [
+          { label: 'Kasir',           icon: 'pos',     to: '/pos' },
+          { label: 'Riwayat Pesanan', icon: 'history', to: '/orders' },
+        ],
+      },
+      {
+        label: 'Inventaris',
+        items: [
+          { label: 'Produk',    icon: 'box',      to: '/products' },
+          { label: 'Kategori',  icon: 'category', to: '/categories' },
+          { label: 'Stok & Adj.', icon: 'stock',    to: '/stock' },
+        ],
+      }
+    )
+  }
 
-  if (auth.isAdmin.value) {
+  if (auth.isAdmin || auth.isSuperAdmin) {
     groups.push({
       label: 'Manajemen',
       items: [
+        ...(auth.isSuperAdmin ? [{ label: 'Tenants', icon: 'users', to: '/tenants' }] : []),
         { label: 'Pengguna', icon: 'users', to: '/users' },
       ],
     })
@@ -119,6 +125,12 @@ function initial(name: string) {
               </svg>
               <svg v-else-if="item.icon === 'category'" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+              </svg>
+              <svg v-else-if="item.icon === 'stock'" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+                <path d="M3.27 6.96L12 12.01l8.73-5.05"/>
+                <path d="M12 22.08V12"/>
+                <circle cx="12" cy="12" r="3"/>
               </svg>
               <svg v-else-if="item.icon === 'users'" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>

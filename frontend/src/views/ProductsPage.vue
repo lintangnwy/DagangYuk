@@ -300,8 +300,8 @@ onMounted(async () => { await auth.fetchUser(); loadProducts() })
                   <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
                 </select>
               </div>
-              <div class="field"><label>Harga Jual <span class="req">*</span></label><input v-model="prodForm.price" type="number" min="0" step="100" placeholder="0" required /></div>
-              <div class="field"><label>Harga Beli</label><input v-model="prodForm.cost_price" type="number" min="0" step="100" placeholder="0" /></div>
+              <div class="field"><label>Harga Jual <span class="req">*</span></label><input v-model="prodForm.price" type="number" min="0" step="1" placeholder="Contoh: 25000" required /></div>
+              <div class="field"><label>Harga Beli</label><input v-model="prodForm.cost_price" type="number" min="0" step="1" placeholder="Contoh: 15000" /></div>
               <div class="field span2"><label>Stok</label><input v-model="prodForm.stock" type="number" min="0" placeholder="0" /></div>
             </div>
             <div v-if="error" class="alert-err sm">{{ error }}</div>

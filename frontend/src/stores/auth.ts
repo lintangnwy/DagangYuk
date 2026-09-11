@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import api from '../utils/axios'
 
 export interface AuthUser {
   id: number
@@ -44,46 +45,38 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function login(email: string, password: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ email, password }),
-    })
-    const data = await res.json()
-    if (!res.ok) {
+    try {
+      const res = await api.post('/login', { email, password })
+      const data = res.data
+      
+      setSession(data.data.token, {
+        id:        data.data.user.id,
+        name:      data.data.user.name,
+        email:     data.data.user.email,
+        role:      data.data.user.role?.name ?? data.data.user.role_id,
+        tenant_id: data.data.user.tenant_id,
+      })
+    } catch (err: any) {
       throw new Error(
-        data?.errors?.email?.[0] ??
-        data?.errors?.password?.[0] ??
-        data?.message ??
-        'Login gagal.'
+        err.response?.data?.message || 'Login gagal.'
       )
     }
-    setSession(data.token, {
-      id:        data.user.id,
-      name:      data.user.name,
-      email:     data.user.email,
-      role:      data.user.role,
-      tenant_id: data.user.tenant_id,
-    })
   }
 
   async function logout(): Promise<void> {
     if (token.value) {
-      await fetch(`${API_BASE}/logout`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token.value}`, Accept: 'application/json' },
-      }).catch(() => {})
+      try {
+        await api.post('/logout')
+      } catch (e) {}
     }
     clearSession()
   }
 
   async function fetchUser(): Promise<void> {
     if (!token.value) return
-    const res = await fetch(`${API_BASE}/user`, {
-      headers: { Authorization: `Bearer ${token.value}`, Accept: 'application/json' },
-    })
-    if (res.ok) {
-      const data = await res.json()
+    try {
+      const res = await api.get('/user')
+      const data = res.data
       const u: AuthUser = {
         id:        data.id,
         name:      data.name,
@@ -93,7 +86,7 @@ export const useAuthStore = defineStore('auth', () => {
       }
       user.value = u
       localStorage.setItem(USER_KEY, JSON.stringify(u))
-    } else {
+    } catch (e) {
       clearSession()
     }
   }
@@ -105,5 +98,5 @@ export const useAuthStore = defineStore('auth', () => {
     fetchUser()
   }
 
-  return { user, token, isAdmin, isSuperAdmin, login, logout, fetchUser, isLoggedIn }
+  return { user, token, isAdmin, isSuperAdmin, login, logout, fetchUser, isLoggedIn, clearSession }
 })
