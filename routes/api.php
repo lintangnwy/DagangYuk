@@ -11,8 +11,10 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\CashShiftController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderItemController;
-
 use App\Http\Controllers\StockAdjustmentController;
+use App\Http\Controllers\SettingController;
+
+use App\Http\Controllers\ReportController;
 
 // ── Public ──────────────────────────────────────────
 Route::post('/login', [AuthController::class, 'login']);
@@ -25,6 +27,12 @@ Route::middleware(['auth:sanctum', 'check_tenant'])->group(function () {
 
     // Dashboard stats
     Route::get('/dashboard', [DashboardController::class, 'index']);
+
+    // Shop Settings (Tenant Admin)
+    Route::get('/settings', [SettingController::class, 'show'])
+        ->middleware('role:admin');
+    Route::put('/settings', [SettingController::class, 'update'])
+        ->middleware('role:admin');
 
     // Tenants
     Route::apiResource('tenants', TenantController::class)
@@ -73,4 +81,7 @@ Route::middleware(['auth:sanctum', 'check_tenant'])->group(function () {
     Route::get('order-items',          [OrderItemController::class, 'index']);
     Route::get('order-items/{id}',     [OrderItemController::class, 'show']);
     Route::delete('order-items/{id}',  [OrderItemController::class, 'destroy']);
+
+    // Reports
+    Route::get('reports/profit', [ReportController::class, 'profit']);
 });

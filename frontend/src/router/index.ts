@@ -4,10 +4,12 @@ import LoginPage     from '@/views/LoginPage.vue'
 import DashboardPage from '@/views/DashboardPage.vue'
 import PosPage       from '@/views/PosPage.vue'
 import ProductsPage  from '@/views/ProductsPage.vue'
+import OrdersPage    from '@/views/OrdersPage.vue'
 import TenantsPage   from '@/views/TenantsPage.vue'
 import UsersPage     from '@/views/UsersPage.vue'
-import OrdersPage    from '@/views/OrdersPage.vue'
 import StockPage     from '@/views/StockPage.vue'
+import SettingsPage  from '@/views/SettingsPage.vue'
+import ReportsPage   from '@/views/ReportsPage.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
@@ -47,7 +49,9 @@ const router = createRouter({
       meta: { requiresAuth: true, denyRoles: ['super_admin'] },
     },
     { path: '/orders',     name: 'orders',     component: OrdersPage,    meta: { requiresAuth: true, denyRoles: ['super_admin'] } },
+    { path: '/reports',    name: 'reports',    component: ReportsPage,   meta: { requiresAuth: true, denyRoles: ['super_admin'] } },
     { path: '/users',      name: 'users',      component: UsersPage,     meta: { requiresAuth: true } },
+    { path: '/settings',   name: 'settings',   component: SettingsPage,  meta: { requiresAuth: true, allowRoles: ['admin'] } },
   ],
 })
 

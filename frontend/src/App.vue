@@ -144,4 +144,106 @@ body {
 .modal-leave-active  { transition: all 0.16s ease-in; }
 .modal-enter-from   { opacity: 0; transform: scale(0.95) translateY(10px); }
 .modal-leave-to     { opacity: 0; transform: scale(0.97); }
+
+/* ── Modal Sukses — item list ── */
+.success-icon {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: #dcfce7; color: #16a34a;
+  display: flex; align-items: center; justify-content: center;
+  margin: 24px auto 10px;
+}
+
+.success-title {
+  font-size: 20px; font-weight: 800;
+  color: var(--ink, #111827); margin: 0;
+  text-align: center;
+}
+
+.success-inv {
+  font-size: 12.5px; color: var(--muted, #6b7280);
+  text-align: center; margin-top: 4px;
+}
+
+.success-details {
+  width: 100%; margin-top: 14px;
+  border-top: 1px dashed var(--border, #e5e7eb);
+  padding-top: 14px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+
+.s-items-label {
+  font-size: 10.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.8px;
+  color: var(--muted, #6b7280);
+  margin-bottom: 4px;
+}
+
+.s-item {
+  display: flex; justify-content: space-between;
+  align-items: flex-start; gap: 8px;
+}
+
+.s-item-left {
+  display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0;
+}
+
+.s-item-name {
+  font-size: 13px; font-weight: 600;
+  color: var(--ink, #111827);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.s-item-qty {
+  font-size: 11.5px; color: var(--muted, #6b7280);
+}
+
+.s-item-sub {
+  font-size: 13px; font-weight: 700;
+  color: var(--ink, #111827); white-space: nowrap;
+}
+
+.srow {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 13.5px; color: var(--muted, #6b7280); gap: 8px;
+}
+.srow span:first-child { white-space: nowrap; flex-shrink: 0; }
+.srow strong { color: var(--ink, #111827); font-weight: 700; }
+.srow.change {
+  background: #f0fdf4; border-radius: 8px;
+  padding: 10px 14px; color: #15803d;
+}
+.srow.change strong { color: #15803d; font-size: 15px; font-weight: 800; }
+
+.success-actions {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 0 24px 24px; margin-top: 8px;
+}
+
+.success-btn-outline {
+  width: 100%; height: 44px; background: none;
+  border: 1.5px solid var(--border, #e5e7eb);
+  color: var(--ink, #111827); border-radius: 10px;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: border-color 0.15s;
+}
+.success-btn-outline:hover { border-color: var(--accent, #2563eb); }
+
+.success-btn-primary {
+  width: 100%; height: 44px; background: var(--accent, #2563eb); color: #fff;
+  border: none; border-radius: 10px; font-size: 14px; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center;
+  justify-content: center; gap: 8px; transition: background 0.15s;
+}
+.success-btn-primary:hover { background: var(--accent-dark, #1d4ed8); }
+
+.abs-x {
+  position: absolute; top: 14px; right: 14px;
+  background: none; border: none; font-size: 18px;
+  cursor: pointer; color: var(--muted, #6b7280);
+  width: 30px; height: 30px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s; line-height: 1;
+}
+.abs-x:hover { background: var(--surface, #f9fafb); }
 </style>

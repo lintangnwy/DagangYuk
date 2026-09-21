@@ -10,6 +10,39 @@ const auth   = useAuthStore()
 const pos    = usePosStore()
 const router = useRouter()
 
+// ── Global Scanner Listener ──
+let scanBuffer = ''
+let scanTimer: ReturnType<typeof setTimeout> | null = null
+
+function handleGlobalKeydown(e: KeyboardEvent) {
+  // Ignore if user is typing in an input other than the search box (like customer name, discount)
+  const target = e.target as HTMLElement
+  if (target && target.tagName === 'INPUT' && target.id !== 'search-sku') return
+  if (target && target.tagName === 'TEXTAREA') return
+
+  if (e.key === 'Enter') {
+    if (scanBuffer.length > 2) {
+      // Process barcode
+      const scanned = scanBuffer.trim()
+      const p = pos.products.find(x => x.sku && x.sku.toLowerCase() === scanned.toLowerCase())
+      if (p) {
+        if (p.stock > 0) addToCart(p)
+        else alert(`Stok ${p.name} habis!`)
+      }
+      
+      scanBuffer = ''
+      searchQuery.value = ''
+    }
+  } else {
+    // Collect keystrokes for barcode scanner (scanners type very fast)
+    if (e.key.length === 1) {
+      scanBuffer += e.key
+      if (scanTimer) clearTimeout(scanTimer)
+      scanTimer = setTimeout(() => { scanBuffer = '' }, 100) // 100ms timeout for scanner speed
+    }
+  }
+}
+
 onMounted(async () => {
   await auth.fetchUser()
   await Promise.all([pos.fetchProducts(), pos.fetchActiveShift()])
@@ -17,6 +50,13 @@ onMounted(async () => {
 
   gsap.from('.panel-products', { opacity: 0, x: -20, duration: 0.45, ease: 'power2.out', delay: 0.1 })
   gsap.from('.panel-order', { opacity: 0, x: 20, duration: 0.45, ease: 'power2.out', delay: 0.1 })
+
+  window.addEventListener('keydown', handleGlobalKeydown)
+})
+
+import { onUnmounted } from 'vue'
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleGlobalKeydown)
 })
 
 async function logout() {
@@ -293,7 +333,7 @@ function printReceipt() {
               stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-            <input v-model="searchQuery" @keydown.enter="handleSearchEnter" type="search" placeholder="Cari nama atau scan SKU/barcode…" class="search-inp" />
+            <input id="search-sku" v-model="searchQuery" @keydown.enter="handleSearchEnter" type="search" placeholder="Cari nama atau scan SKU/barcode…" class="search-inp" />
           </label>
         </div>
 

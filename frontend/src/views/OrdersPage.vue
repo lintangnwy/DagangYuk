@@ -1,585 +1,288 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 import AppLayout from '@/components/AppLayout.vue'
 import api from '@/utils/axios'
 
+const auth = useAuthStore()
+
 interface OrderItem {
   id: number
-  product_id: number
   product_name: string
   quantity: number
   unit_price: number
   subtotal: number
 }
 
-interface CashShift {
-  id: number
-  starting_cash: number
-  status: string
-}
-
 interface Order {
   id: number
   invoice_number: string
   total_amount: number
-  discount_amount: number
   payment_method: string
   created_at: string
   user?: { id: number; name: string }
-  cashShift?: CashShift
   items: OrderItem[]
 }
 
-const orders    = ref<Order[]>([])
-const loading   = ref(false)
-const error     = ref<string | null>(null)
-const searchQuery = ref('')
-const selectedOrder = ref<Order | null>(null)
-const showDetailModal = ref(false)
+const orders  = ref<Order[]>([])
+const loading = ref(true)
+const error   = ref('')
+const search  = ref('')
+const expandedId = ref<number | null>(null)
 
-onMounted(() => {
-  fetchOrders()
+const filtered = computed(() => {
+  const q = search.value.toLowerCase()
+  if (!q) return orders.value
+  return orders.value.filter(o =>
+    o.invoice_number.toLowerCase().includes(q) ||
+    o.user?.name?.toLowerCase().includes(q)
+  )
 })
 
-async function fetchOrders() {
-  loading.value = true
-  error.value   = null
+async function load() {
+  loading.value = true; error.value = ''
   try {
     const res = await api.get('/orders')
     orders.value = res.data
   } catch (e: any) {
-    error.value = e.response?.data?.message || e.message || 'Gagal mengambil riwayat transaksi.'
-  } finally {
-    loading.value = false
-  }
+    error.value = e.response?.data?.message ?? 'Gagal memuat riwayat.'
+  } finally { loading.value = false }
 }
 
-const filteredOrders = computed(() => {
-  if (!searchQuery.value.trim()) return orders.value
-  const q = searchQuery.value.toLowerCase().trim()
-  return orders.value.filter(o => 
-    o.invoice_number.toLowerCase().includes(q) ||
-    (o.user?.name && o.user.name.toLowerCase().includes(q))
-  )
-})
-
-function viewDetail(order: Order) {
-  selectedOrder.value = order
-  showDetailModal.value = true
+function toggle(id: number) {
+  expandedId.value = expandedId.value === id ? null : id
 }
 
-function fmt(n: number) {
-  return 'Rp\u00A0' + Number(n).toLocaleString('id-ID')
-}
+function fmt(n: number) { return 'Rp\u00A0' + n.toLocaleString('id-ID') }
 
-function formatDate(dtStr: string) {
-  if (!dtStr) return '-'
-  return new Date(dtStr).toLocaleString('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+function fmtDate(d: string) {
+  return new Date(d).toLocaleDateString('id-ID', {
+    day: 'numeric', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
   })
 }
 
-function printReceipt(order: Order) {
-  const payLabel: Record<string, string> = { cash: 'Tunai', qris: 'QRIS', transfer: 'Transfer' }
-
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <title>Struk - ${order.invoice_number}</title>
-      <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Courier New', monospace; font-size: 12px; width: 80mm; margin: 0 auto; padding: 8px; }
-        .center { text-align: center; }
-        .bold   { font-weight: bold; }
-        .big    { font-size: 14px; }
-        .line   { border-top: 1px dashed #000; margin: 6px 0; }
-        .row    { display: flex; justify-content: space-between; margin: 3px 0; }
-        .row .name { flex: 1; }
-        .row .price { text-align: right; white-space: nowrap; margin-left: 8px; }
-        .total-row  { display: flex; justify-content: space-between; font-weight: bold; font-size: 13px; margin: 4px 0; }
-        .footer { text-align: center; margin-top: 10px; font-size: 11px; }
-      </style>
-    </head>
-    <body>
-      <div class="center bold big">DagangYuk</div>
-      <div class="center">Point of Sale</div>
-      <div class="line"></div>
-      <div class="row"><span>No. Invoice</span><span>${order.invoice_number}</span></div>
-      <div class="row"><span>Tanggal</span><span>${formatDate(order.created_at)}</span></div>
-      <div class="row"><span>Kasir</span><span>${order.user?.name ?? '-'}</span></div>
-      <div class="row"><span>Metode</span><span>${payLabel[order.payment_method] ?? order.payment_method}</span></div>
-      <div class="line"></div>
-      <div class="bold" style="margin-bottom:4px">ITEM PESANAN</div>
-      ${order.items.map(item => `
-        <div class="row">
-          <span class="name">${item.product_name}</span>
-        </div>
-        <div class="row" style="padding-left:8px">
-          <span>${item.quantity} x ${Number(item.unit_price).toLocaleString('id-ID')}</span>
-          <span class="price">Rp ${Number(item.subtotal).toLocaleString('id-ID')}</span>
-        </div>
-      `).join('')}
-      <div class="line"></div>
-      ${order.discount_amount > 0 ? `
-        <div class="row"><span>Diskon</span><span>- Rp ${Number(order.discount_amount).toLocaleString('id-ID')}</span></div>
-      ` : ''}
-      <div class="total-row">
-        <span>TOTAL DIBAYAR</span>
-        <span>Rp ${Number(order.total_amount).toLocaleString('id-ID')}</span>
-      </div>
-      <div class="footer">
-        <div class="line"></div>
-        <div>CETAK ULANG (RE-PRINT)</div>
-        <div>Terima kasih telah berbelanja!</div>
-        <div>Powered by DagangYuk</div>
-      </div>
-    </body>
-    </html>
-  `
-
-  const win = window.open('', '_blank', 'width=400,height=600')
-  if (!win) { alert('Popup diblokir browser. Izinkan popup untuk mencetak.'); return }
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  setTimeout(() => { win.print(); win.close() }, 300)
+function payLabel(m: string) {
+  return ({ cash: 'Tunai', qris: 'QRIS', transfer: 'Transfer' } as Record<string, string>)[m] ?? m
 }
+
+function printOrder(order: Order) {
+  const html = `
+    <!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>Struk ${order.invoice_number}</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: 'Courier New', monospace; font-size: 12px; width: 80mm; margin: 0 auto; padding: 8px; }
+      .c { text-align: center; } .b { font-weight: bold; } .line { border-top: 1px dashed #000; margin: 6px 0; }
+      .row { display: flex; justify-content: space-between; margin: 3px 0; }
+    </style></head><body>
+    <div class="c b" style="font-size:14px">DagangYuk</div>
+    <div class="c">Point of Sale</div>
+    <div class="line"></div>
+    <div class="row"><span>Invoice</span><span>${order.invoice_number}</span></div>
+    <div class="row"><span>Tanggal</span><span>${fmtDate(order.created_at)}</span></div>
+    <div class="row"><span>Kasir</span><span>${order.user?.name ?? '-'}</span></div>
+    <div class="row"><span>Metode</span><span>${payLabel(order.payment_method)}</span></div>
+    <div class="line"></div>
+    ${order.items.map(i => `
+      <div class="row"><span>${i.product_name}</span></div>
+      <div class="row" style="padding-left:8px">
+        <span>${i.quantity}x${i.unit_price.toLocaleString('id-ID')}</span>
+        <span>Rp ${i.subtotal.toLocaleString('id-ID')}</span>
+      </div>`).join('')}
+    <div class="line"></div>
+    <div class="row b"><span>TOTAL</span><span>Rp ${order.total_amount.toLocaleString('id-ID')}</span></div>
+    <div class="c" style="margin-top:10px;font-size:11px">Terima kasih!</div>
+    </body></html>`
+  const w = window.open('', '_blank', 'width=400,height=550')
+  if (w) { w.document.write(html); w.document.close(); setTimeout(() => { w.print(); w.close() }, 300) }
+}
+
+onMounted(async () => { await auth.fetchUser(); load() })
 </script>
 
 <template>
   <AppLayout>
     <template #title>Riwayat Pesanan</template>
 
-    <div class="orders-wrap">
-      <!-- Top header -->
-      <div class="page-hd">
-        <div>
-          <h1 class="page-title">Riwayat Transaksi POS</h1>
-          <p class="page-sub">Lihat dan cetak ulang struk transaksi pelanggan.</p>
-        </div>
-        <div class="hd-actions">
-          <label class="search-box">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <input v-model="searchQuery" type="text" placeholder="Cari no. invoice / kasir..." />
-          </label>
-          <button class="btn-refresh" @click="fetchOrders">↺ Segarkan</button>
-        </div>
+    <div class="page-head">
+      <div>
+        <h1>Riwayat Pesanan</h1>
+        <p>Semua transaksi yang telah diproses</p>
+      </div>
+      <button class="btn-refresh" @click="load" :disabled="loading">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" :style="loading ? 'animation:spin .7s linear infinite' : ''">
+          <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+          <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+        </svg>
+        Refresh
+      </button>
+    </div>
+
+    <div v-if="error" class="alert-err">{{ error }}</div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="search-box">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input v-model="search" type="search" placeholder="Cari invoice atau nama kasir…" />
+      </div>
+      <span class="count-txt">{{ filtered.length }} transaksi</span>
+    </div>
+
+    <!-- Table -->
+    <div class="tcard">
+      <div v-if="loading" class="empty-state">Memuat riwayat...</div>
+      <div v-else-if="!filtered.length" class="empty-state">
+        {{ search ? 'Tidak ditemukan.' : 'Belum ada transaksi.' }}
       </div>
 
-      <!-- Content -->
-      <div v-if="loading" class="state-box">
-        <span class="spin-lg"></span> Memuat riwayat transaksi...
-      </div>
-      <div v-else-if="error" class="state-box err">
-        <p>{{ error }}</p>
-        <button class="btn-retry" @click="fetchOrders">Coba Lagi</button>
-      </div>
-      <div v-else-if="!filteredOrders.length" class="state-box empty">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5">
-          <rect x="3" y="4" width="18" height="16" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
-          <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-        </svg>
-        <p>Belum ada transaksi ditemukan.</p>
-      </div>
-      <div v-else class="table-card">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>No. Invoice</th>
-              <th>Tanggal</th>
-              <th>Kasir</th>
-              <th>Jumlah Item</th>
-              <th>Metode Bayar</th>
-              <th>Diskon</th>
-              <th>Total Akhir</th>
-              <th class="txt-right">Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="order in filteredOrders" :key="order.id">
-              <td class="inv-col">{{ order.invoice_number }}</td>
-              <td>{{ formatDate(order.created_at) }}</td>
-              <td>{{ order.user?.name ?? '-' }}</td>
-              <td>{{ order.items.reduce((s, i) => s + i.quantity, 0) }} item</td>
-              <td>
-                <span class="pay-badge" :class="order.payment_method">
-                  {{ order.payment_method.toUpperCase() }}
-                </span>
-              </td>
-              <td>{{ order.discount_amount > 0 ? fmt(order.discount_amount) : '-' }}</td>
-              <td class="font-bold">{{ fmt(order.total_amount) }}</td>
-              <td class="txt-right actions">
-                <button class="btn-view" @click="viewDetail(order)">Lihat Detail</button>
-                <button class="btn-print" @click="printReceipt(order)" title="Cetak Struk">🖨️ Struk</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div v-else>
+        <div v-for="order in filtered" :key="order.id" class="order-row">
+          <!-- Header baris -->
+          <div class="order-header" @click="toggle(order.id)">
+            <div class="order-inv">
+              <span class="inv-num">{{ order.invoice_number }}</span>
+              <span class="inv-date">{{ fmtDate(order.created_at) }}</span>
+            </div>
+            <div class="order-meta">
+              <span class="pay-badge" :class="order.payment_method">{{ payLabel(order.payment_method) }}</span>
+              <span class="kasir-name">{{ order.user?.name ?? '—' }}</span>
+              <span class="total-amt">{{ fmt(order.total_amount) }}</span>
+              <button class="print-btn" @click.stop="printOrder(order)" title="Cetak Struk">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 6 2 18 2 18 9"/>
+                  <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/>
+                  <rect x="6" y="14" width="12" height="8"/>
+                </svg>
+              </button>
+              <span class="expand-icon" :class="{ open: expandedId === order.id }">▾</span>
+            </div>
+          </div>
+
+          <!-- Detail item (collapsible) -->
+          <Transition name="expand">
+            <div v-if="expandedId === order.id" class="order-items">
+              <table>
+                <thead>
+                  <tr><th>Produk</th><th>Qty</th><th>Harga</th><th>Subtotal</th></tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in order.items" :key="item.id">
+                    <td>{{ item.product_name }}</td>
+                    <td class="center">{{ item.quantity }}</td>
+                    <td>{{ fmt(item.unit_price) }}</td>
+                    <td class="fw">{{ fmt(item.subtotal) }}</td>
+                  </tr>
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colspan="3" class="total-label">Total</td>
+                    <td class="fw accent">{{ fmt(order.total_amount) }}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </Transition>
+        </div>
       </div>
     </div>
 
-    <!-- Modal Detail Order -->
-    <Teleport to="body">
-      <div v-if="showDetailModal && selectedOrder" class="modal-overlay" @click.self="showDetailModal = false">
-        <div class="modal-card">
-          <div class="modal-hd">
-            <div>
-              <h2>Detail Transaksi</h2>
-              <p class="sub-inv">{{ selectedOrder.invoice_number }}</p>
-            </div>
-            <button class="modal-x" @click="showDetailModal = false">✕</button>
-          </div>
-          <div class="modal-bd">
-            <div class="meta-grid">
-              <div class="meta-item">
-                <span class="meta-lbl">Tanggal & Waktu</span>
-                <span class="meta-val">{{ formatDate(selectedOrder.created_at) }}</span>
-              </div>
-              <div class="meta-item">
-                <span class="meta-lbl">Kasir</span>
-                <span class="meta-val">{{ selectedOrder.user?.name ?? '-' }}</span>
-              </div>
-              <div class="meta-item">
-                <span class="meta-lbl">Metode Pembayaran</span>
-                <span class="meta-val uppercase">{{ selectedOrder.payment_method }}</span>
-              </div>
-            </div>
-
-            <div class="items-head">Daftar Produk</div>
-            <div class="items-list">
-              <div v-for="item in selectedOrder.items" :key="item.id" class="item-row">
-                <div class="item-info">
-                  <span class="item-name">{{ item.product_name }}</span>
-                  <span class="item-qty">{{ item.quantity }} × {{ fmt(item.unit_price) }}</span>
-                </div>
-                <span class="item-sub">{{ fmt(item.subtotal) }}</span>
-              </div>
-            </div>
-
-            <div class="sum-box">
-              <div class="sum-row" v-if="selectedOrder.discount_amount > 0">
-                <span>Diskon</span>
-                <span>- {{ fmt(selectedOrder.discount_amount) }}</span>
-              </div>
-              <div class="sum-row total">
-                <span>Total Tagihan</span>
-                <strong>{{ fmt(selectedOrder.total_amount) }}</strong>
-              </div>
-            </div>
-          </div>
-          <div class="modal-ft">
-            <button class="btn-ghost" @click="showDetailModal = false">Tutup</button>
-            <button class="btn-primary" @click="printReceipt(selectedOrder)">
-              🖨️ Cetak Struk (PDF)
-            </button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
   </AppLayout>
 </template>
 
 <style scoped>
-.orders-wrap {
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.page-hd {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.page-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--ink);
-}
-
-.page-sub {
-  font-size: 13px;
-  color: var(--muted);
-}
-
-.hd-actions {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.search-box {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--white);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0 12px;
-  height: 38px;
-}
-
-.search-box input {
-  border: none;
-  outline: none;
-  font-size: 13px;
-  background: transparent;
-  width: 200px;
-}
+.page-head { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+.page-head h1 { font-size: 20px; font-weight: 800; letter-spacing: -.5px; color: var(--ink); }
+.page-head p  { font-size: 13px; color: var(--muted); margin-top: 2px; }
 
 .btn-refresh {
-  height: 38px;
-  padding: 0 14px;
-  background: var(--white);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 13px;
-  cursor: pointer;
-  font-weight: 500;
-
-  &:hover { border-color: var(--accent); color: var(--accent); }
+  display: flex; align-items: center; gap: 6px;
+  background: none; border: 1.5px solid var(--border); color: var(--muted);
+  padding: 8px 14px; border-radius: 8px; font-size: 13px; cursor: pointer;
+  transition: border-color .15s, color .15s;
 }
+.btn-refresh:hover { border-color: var(--accent); color: var(--accent); }
+.btn-refresh:disabled { opacity: .5; cursor: not-allowed; }
 
-.table-card {
-  background: var(--white);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+.alert-err { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; font-size: 13px; padding: 10px 14px; border-radius: 7px; margin-bottom: 14px; }
+
+.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.search-box { display: flex; align-items: center; gap: 8px; background: var(--white); border: 1px solid var(--border); border-radius: 8px; padding: 0 12px; max-width: 320px; flex: 1; transition: border-color .15s; }
+.search-box:focus-within { border-color: var(--accent); }
+.search-box svg { color: #9ca3af; flex-shrink: 0; }
+.search-box input { border: none; outline: none; font-size: 13px; background: transparent; color: var(--ink); height: 38px; width: 100%; }
+.search-box input::placeholder { color: #d1d5db; }
+.count-txt { font-size: 13px; color: var(--muted); white-space: nowrap; }
+
+.tcard { background: var(--white); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.empty-state { text-align: center; padding: 52px; color: #d1d5db; font-size: 14px; }
+
+/* Order rows */
+.order-row { border-bottom: 1px solid var(--border); }
+.order-row:last-child { border-bottom: none; }
+
+.order-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; cursor: pointer; transition: background .12s; gap: 12px;
+  flex-wrap: wrap;
 }
+.order-header:hover { background: var(--surface); }
 
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13.5px;
-  text-align: left;
+.order-inv { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.inv-num  { font-size: 13.5px; font-weight: 700; color: var(--ink); font-family: monospace; }
+.inv-date { font-size: 11.5px; color: var(--muted); }
+
+.order-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+.pay-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 600; }
+.pay-badge.cash     { background: var(--accent-bg); color: var(--accent-dark); }
+.pay-badge.qris     { background: #ede9fe; color: #7c3aed; }
+.pay-badge.transfer { background: #fef3c7; color: #d97706; }
+
+.kasir-name { font-size: 12.5px; color: var(--muted); }
+.total-amt  { font-size: 14px; font-weight: 800; color: var(--ink); white-space: nowrap; }
+
+.print-btn {
+  background: none; border: 1px solid var(--border); color: var(--muted);
+  width: 30px; height: 30px; border-radius: 6px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: all .15s;
 }
+.print-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
 
-.data-table th {
-  background: var(--surface);
-  padding: 12px 16px;
-  font-weight: 600;
-  color: var(--muted);
-  border-bottom: 1px solid var(--border);
-}
+.expand-icon { font-size: 14px; color: var(--muted); transition: transform .2s; display: inline-block; }
+.expand-icon.open { transform: rotate(180deg); }
 
-.data-table td {
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border);
-}
-
-.inv-col {
-  font-weight: 700;
-  font-family: monospace;
-  color: var(--accent);
-}
-
-.pay-badge {
-  display: inline-block;
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 700;
-
-  &.cash { background: #dcfce7; color: #15803d; }
-  &.qris { background: #e0e7ff; color: #4338ca; }
-  &.transfer { background: #fef3c7; color: #b45309; }
-}
-
-.txt-right { text-align: right; }
-.font-bold { font-weight: 700; }
-.uppercase { text-transform: uppercase; }
-
-.actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
-.btn-view {
-  padding: 6px 12px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 12px;
-  cursor: pointer;
-  font-weight: 600;
-  &:hover { border-color: var(--accent); color: var(--accent); }
-}
-
-.btn-print {
-  padding: 6px 12px;
-  background: var(--accent-bg);
-  border: 1px solid var(--accent);
-  color: var(--accent);
-  border-radius: 6px;
-  font-size: 12px;
-  cursor: pointer;
-  font-weight: 600;
-  &:hover { background: var(--accent); color: #fff; }
-}
-
-.state-box {
-  background: var(--white);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 48px;
-  text-align: center;
-  color: var(--muted);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-}
-
-/* Modal */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-card {
-  background: var(--white);
-  border-radius: 14px;
-  width: 100%;
-  max-width: 480px;
-  overflow: hidden;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-}
-
-.modal-hd {
-  padding: 18px 20px;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-
-  h2 { font-size: 17px; font-weight: 700; }
-  .sub-inv { font-size: 12px; font-family: monospace; color: var(--muted); }
-}
-
-.modal-x {
-  background: transparent;
-  border: none;
-  font-size: 18px;
-  cursor: pointer;
-  color: var(--muted);
-}
-
-.modal-bd {
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.meta-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  background: var(--surface);
-  padding: 12px;
-  border-radius: 8px;
-}
-
-.meta-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.meta-lbl { font-size: 11px; color: var(--muted); }
-.meta-val { font-size: 12.5px; font-weight: 600; }
-
-.items-head {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.items-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.item-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 13px;
-}
-
-.item-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.item-name { font-weight: 600; }
-.item-qty { font-size: 11.5px; color: var(--muted); }
-.item-sub { font-weight: 700; }
-
-.sum-box {
-  border-top: 1px dashed var(--border);
-  padding-top: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.sum-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-  &.total { font-size: 15px; font-weight: 700; border-top: 1px solid var(--border); padding-top: 8px; margin-top: 4px; }
-}
-
-.modal-ft {
-  padding: 14px 20px;
-  background: var(--surface);
+/* Detail items */
+.order-items {
   border-top: 1px solid var(--border);
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+  background: var(--surface);
+  padding: 0 18px 14px;
+  overflow: hidden;
 }
 
-.btn-ghost {
-  padding: 8px 16px;
-  border: 1px solid var(--border);
-  background: var(--white);
-  border-radius: 8px;
-  font-size: 13px;
-  cursor: pointer;
+.order-items table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+.order-items th {
+  text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .5px; color: var(--muted); padding: 0 0 8px;
+  border-bottom: 1px solid var(--border);
 }
+.order-items td { padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13.5px; }
+.order-items tr:last-child td { border-bottom: none; }
+.order-items tfoot td { font-size: 14px; padding-top: 10px; border-top: 1px solid var(--border); }
 
-.btn-primary {
-  padding: 8px 18px;
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  &:hover { opacity: 0.9; }
-}
+.center { text-align: center; }
+.fw { font-weight: 700; }
+.total-label { color: var(--muted); font-size: 13px; }
+.accent { color: var(--accent); font-size: 15px; }
+
+/* Expand animation */
+.expand-enter-active { transition: all .22s ease-out; }
+.expand-leave-active  { transition: all .18s ease-in; }
+.expand-enter-from   { opacity: 0; max-height: 0; }
+.expand-leave-to     { opacity: 0; max-height: 0; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>
