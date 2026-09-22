@@ -107,13 +107,18 @@ const orderResult = ref<OrderResult | null>(null)
 
 // Computed pembayaran
 const discountAmount = computed(() => {
-  const v = Number(discountValue.value) || 0
-  if (discountType.value === 'percent') return Math.round((total.value * v) / 100)
+  const raw = discountValue.value
+  if (discountType.value === 'percent') {
+    const pct = parseFloat(raw) || 0
+    return Math.round((total.value * Math.min(pct, 100)) / 100)
+  }
+  // Nominal — pakai parseRupiah untuk handle format "21.600"
+  const v = parseRupiah(raw)
   return Math.min(v, total.value)
 })
 
 const grandTotal   = computed(() => Math.max(0, total.value - discountAmount.value))
-const changeAmount = computed(() => Math.max(0, (Number(paidAmount.value) || 0) - grandTotal.value))
+const changeAmount = computed(() => Math.max(0, parseRupiah(paidAmount.value) - grandTotal.value))
 
 // Quick amount buttons
 const quickAmounts = computed(() => {
@@ -209,26 +214,33 @@ async function processTransaction() {
 }
 
 async function confirmPay() {
-  if (payMethod.value === 'cash' && Number(paidAmount.value) < grandTotal.value) {
+  if (payMethod.value === 'cash' && parseRupiah(paidAmount.value) < grandTotal.value) {
     alert('Uang diterima kurang dari total tagihan.')
     return
   }
   isProcessing.value = true
 
-  // Simpan nilai sebelum cart dikosongkan
-  const snapTotal     = grandTotal.value
-  const snapPaid      = payMethod.value === 'cash' ? Number(paidAmount.value) : grandTotal.value
-  const snapChange    = payMethod.value === 'cash' ? changeAmount.value : 0
-  const snapMethod    = payMethod.value
-  const snapItems     = pos.cart.map(i => ({
+  const snapTotal  = grandTotal.value
+  const snapPaid   = payMethod.value === 'cash' ? parseRupiah(paidAmount.value) : grandTotal.value
+  const snapChange = payMethod.value === 'cash' ? changeAmount.value : 0
+  const snapMethod = payMethod.value
+  const snapItems  = pos.cart.map(i => ({
     product_name: i.product.name,
     quantity:     i.qty,
     unit_price:   i.product.price,
     subtotal:     i.product.price * i.qty,
   }))
+  const snapDiscount = discountAmount.value
 
   try {
-    const result = await pos.checkout(payMethod.value, discountAmount.value)
+    // QRIS & Transfer → pakai Midtrans Snap
+    if (payMethod.value === 'qris' || payMethod.value === 'transfer') {
+      await processMidtrans(snapTotal, snapItems, snapMethod, snapDiscount)
+      return
+    }
+
+    // Tunai → proses langsung
+    const result = await pos.checkout(payMethod.value, snapDiscount)
     showPayModal.value = false
     orderResult.value = {
       invoice_number: result.data?.invoice_number ?? '-',
@@ -245,6 +257,64 @@ async function confirmPay() {
   } catch (e: unknown) {
     alert(e instanceof Error ? e.message : 'Transaksi gagal.')
   } finally { isProcessing.value = false }
+}
+
+async function processMidtrans(
+  amount: number,
+  items: Array<{ product_name: string; quantity: number; unit_price: number; subtotal: number }>,
+  method: string,
+  discount: number
+) {
+  try {
+    // 1. Buat order di backend (status pending)
+    const orderRes = await pos.checkout(method as 'qris' | 'transfer', discount)
+    const invoiceNumber = orderRes.data?.invoice_number ?? `INV-${Date.now()}`
+
+    // 2. Minta Snap token dari backend
+    const { default: api } = await import('@/utils/axios')
+    const tokenRes = await api.post('/midtrans/token', {
+      order_id: invoiceNumber,
+      amount:   amount,
+      customer: customerName.value || auth.user?.name,
+    })
+
+    const { snap_token } = tokenRes.data
+
+    // 3. Buka Midtrans Snap popup
+    ;(window as any).snap.pay(snap_token, {
+      onSuccess: () => {
+        showPayModal.value = false
+        isProcessing.value = false
+        orderResult.value = {
+          invoice_number: invoiceNumber,
+          total_amount:   amount,
+          paid_amount:    amount,
+          change:         0,
+          payment_method: method,
+          items,
+          tenant_name:    auth.user?.name,
+          created_at:     new Date().toLocaleString('id-ID'),
+        }
+        showSuccessModal.value = true
+        customerName.value = ''
+      },
+      onPending: () => {
+        showPayModal.value = false
+        isProcessing.value = false
+        alert(`Pembayaran pending. Invoice: ${invoiceNumber}.\nSelesaikan pembayaran sesuai instruksi.`)
+      },
+      onError: (result: any) => {
+        isProcessing.value = false
+        alert('Pembayaran gagal: ' + (result?.status_message ?? 'Unknown error'))
+      },
+      onClose: () => {
+        isProcessing.value = false
+      },
+    })
+  } catch (e: unknown) {
+    isProcessing.value = false
+    throw e
+  }
 }
 
 // ── Utils ──────────────────────────────────────────────
@@ -621,7 +691,7 @@ function printReceipt() {
                 </button>
               </div>
               <!-- Kembalian -->
-              <div v-if="Number(paidAmount) >= grandTotal" class="change-row">
+              <div v-if="parseRupiah(paidAmount) >= grandTotal" class="change-row">
                 <span>Kembalian</span>
                 <strong>{{ fmt(changeAmount) }}</strong>
               </div>

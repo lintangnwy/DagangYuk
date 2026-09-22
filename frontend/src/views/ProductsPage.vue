@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import AppLayout from '@/components/AppLayout.vue'
 
 const auth = useAuthStore()
+const route = useRoute()
 const API  = 'http://localhost:8000/api'
 const IMG  = 'http://localhost:8000/storage'
 
@@ -20,6 +22,7 @@ const loading    = ref(false)
 const saving     = ref(false)
 const catSaving  = ref(false)
 const error      = ref('')
+const stockFilter = ref<'all' | 'low_stock' | 'out_of_stock'>('all')
 
 function authH(): HeadersInit {
   return { Authorization: `Bearer ${auth.token}`, Accept: 'application/json' }
@@ -31,8 +34,16 @@ const categories = ref<Category[]>([])
 const prodSearch = ref('')
 
 const filteredProducts = computed(() => {
+  let filtered = products.value
+  
+  if (stockFilter.value === 'low_stock') {
+    filtered = filtered.filter(p => p.stock > 0 && p.stock < 5)
+  } else if (stockFilter.value === 'out_of_stock') {
+    filtered = filtered.filter(p => p.stock === 0)
+  }
+  
   const q = prodSearch.value.toLowerCase()
-  return q ? products.value.filter(p => p.name.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q)) : products.value
+  return q ? filtered.filter(p => p.name.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q)) : filtered
 })
 
 const showProdModal = ref(false)
@@ -150,7 +161,16 @@ async function doDelCat() {
 
 function fmt(n: number) { return 'Rp\u00A0' + n.toLocaleString('id-ID') }
 
-onMounted(async () => { await auth.fetchUser(); loadProducts() })
+onMounted(async () => { 
+  await auth.fetchUser()
+  const filterParam = route.query.filter as string
+  if (filterParam === 'low_stock') {
+    stockFilter.value = 'low_stock'
+  } else if (filterParam === 'out_of_stock') {
+    stockFilter.value = 'out_of_stock'
+  }
+  loadProducts()
+})
 </script>
 
 <template>
@@ -185,17 +205,28 @@ onMounted(async () => { await auth.fetchUser(); loadProducts() })
 
     <div v-if="error" class="alert-err">{{ error }}</div>
 
-    <!-- ══ TAB PRODUK ══ -->
-    <div v-if="activeTab === 'products'">
-      <div class="toolbar">
-        <div class="search-box">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          <input v-model="prodSearch" type="search" placeholder="Cari nama atau SKU…" />
-        </div>
-        <span class="count-txt">{{ filteredProducts.length }} produk</span>
-      </div>
+     <!-- ══ TAB PRODUK ══ -->
+     <div v-if="activeTab === 'products'">
+       <div class="toolbar">
+         <div class="search-box">
+           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+           </svg>
+           <input v-model="prodSearch" type="search" placeholder="Cari nama atau SKU…" />
+         </div>
+         <div class="stock-filters">
+           <button class="filter-btn" :class="{ active: stockFilter === 'all' }" @click="stockFilter = 'all'">
+             Semua
+           </button>
+           <button class="filter-btn" :class="{ active: stockFilter === 'low_stock' }" @click="stockFilter = 'low_stock'">
+             Stok &lt; 5
+           </button>
+           <button class="filter-btn" :class="{ active: stockFilter === 'out_of_stock' }" @click="stockFilter = 'out_of_stock'">
+             Habis
+           </button>
+         </div>
+         <span class="count-txt">{{ filteredProducts.length }} produk</span>
+       </div>
 
       <div class="tcard">
         <div v-if="loading" class="empty-state">Memuat...</div>
@@ -386,12 +417,18 @@ onMounted(async () => { await auth.fetchUser(); loadProducts() })
 .alert-err { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; font-size: 13px; padding: 10px 14px; border-radius: 7px; margin-bottom: 14px; }
 .alert-err.sm { margin-top: 4px; margin-bottom: 0; }
 
-.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
 .search-box { display: flex; align-items: center; gap: 8px; background: var(--white); border: 1px solid var(--border); border-radius: 8px; padding: 0 12px; max-width: 280px; flex: 1; transition: border-color .15s; }
 .search-box:focus-within { border-color: var(--accent); }
 .search-box svg { color: #9ca3af; flex-shrink: 0; }
 .search-box input { border: none; outline: none; font-size: 13px; background: transparent; color: var(--ink); height: 38px; width: 100%; }
 .search-box input::placeholder { color: #d1d5db; }
+
+.stock-filters { display: flex; gap: 6px; }
+.filter-btn { background: var(--white); border: 1px solid var(--border); color: var(--muted); padding: 6px 12px; border-radius: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+.filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+.filter-btn.active { background: var(--accent-bg); color: var(--accent); border-color: var(--accent-ring); }
+
 .count-txt { font-size: 13px; color: var(--muted); white-space: nowrap; }
 
 .tcard { background: var(--white); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }

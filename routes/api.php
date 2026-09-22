@@ -11,6 +11,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\CashShiftController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderItemController;
+use App\Http\Controllers\MidtransController;
 use App\Http\Controllers\StockAdjustmentController;
 use App\Http\Controllers\SettingController;
 
@@ -18,6 +19,9 @@ use App\Http\Controllers\ReportController;
 
 // ── Public ──────────────────────────────────────────
 Route::post('/login', [AuthController::class, 'login']);
+
+// Webhook Midtrans — public (tidak perlu auth)
+Route::post('/midtrans/webhook', [MidtransController::class, 'webhook']);
 
 // ── Protected ────────────────────────────────────────
 Route::middleware(['auth:sanctum', 'check_tenant'])->group(function () {
@@ -77,6 +81,9 @@ Route::middleware(['auth:sanctum', 'check_tenant'])->group(function () {
     Route::post('orders',      [OrderController::class, 'store']);
     Route::get('orders/{id}',  [OrderController::class, 'show']);
 
+    // Midtrans — buat token pembayaran QRIS/Transfer
+    Route::post('midtrans/token', [MidtransController::class, 'createToken']);
+
     // Order Items
     Route::get('order-items',          [OrderItemController::class, 'index']);
     Route::get('order-items/{id}',     [OrderItemController::class, 'show']);
@@ -84,4 +91,5 @@ Route::middleware(['auth:sanctum', 'check_tenant'])->group(function () {
 
     // Reports
     Route::get('reports/profit', [ReportController::class, 'profit']);
+    Route::get('reports/cash-shifts', [ReportController::class, 'cashShifts']);
 });
