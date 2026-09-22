@@ -10,21 +10,35 @@ class CashShiftController extends Controller
 {
     public function index()
     {
-        $shifts = CashShift::with('user')
-            ->latest()
-            ->get();
+        $user = Auth::user();
+
+        $query = CashShift::with('user');
+
+        if ($user && $user->role_id !== 1) {
+            $query->where('tenant_id', $user->tenant_id);
+        }
+
+        $shifts = $query->latest()->get();
 
         return response()->json($shifts);
     }
 
     public function store(Request $request)
     {
+        $user = Auth::user();
+
+        if (!$user || !$user->tenant_id) {
+            return response()->json([
+                'message' => 'Anda harus memiliki tenant aktif untuk membuka shift.'
+            ], 403);
+        }
+
         $data = $request->validate([
-            'tenant_id' => 'required|exists:tenants,id',
             'starting_cash' => 'required|numeric|min:0',
         ]);
 
-        $existingShift = CashShift::where('user_id', Auth::id())
+        $existingShift = CashShift::where('tenant_id', $user->tenant_id)
+            ->where('user_id', $user->id)
             ->where('status', 'open')
             ->first();
 
@@ -35,8 +49,8 @@ class CashShiftController extends Controller
         }
 
         $shift = CashShift::create([
-            'tenant_id' => $data['tenant_id'],
-            'user_id' => Auth::id(),
+            'tenant_id' => $user->tenant_id,
+            'user_id' => $user->id,
             'starting_cash' => $data['starting_cash'],
             'status' => 'open',
             'opened_at' => now(),
@@ -50,17 +64,29 @@ class CashShiftController extends Controller
 
     public function show($id)
     {
-        $shift = CashShift::with([
-            'user',
-            'orders'
-        ])->findOrFail($id);
+        $user = Auth::user();
+        $query = CashShift::with(['user', 'orders']);
+
+        if ($user && $user->role_id !== 1) {
+            $query->where('tenant_id', $user->tenant_id);
+        }
+
+        $shift = $query->findOrFail($id);
 
         return response()->json($shift);
     }
 
     public function close(Request $request, $id)
     {
-        $shift = CashShift::findOrFail($id);
+        $user = Auth::user();
+        $query = CashShift::query();
+
+        if ($user && $user->role_id !== 1) {
+            $query->where('tenant_id', $user->tenant_id)
+                ->where('user_id', $user->id);
+        }
+
+        $shift = $query->findOrFail($id);
 
         if ($shift->status === 'closed') {
             return response()->json([
@@ -87,7 +113,7 @@ class CashShiftController extends Controller
 
         return response()->json([
             'message' => 'Shift berhasil ditutup',
-            'data' => $shift
+            'data' => $shift->fresh()
         ]);
     }
 }
