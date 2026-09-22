@@ -117,7 +117,7 @@ function stockStatus(stock: number) {
 }
 
 function imageUrl(image: string | null) {
-  if (!image) return null
+  if (!image) return undefined
   return `http://localhost:8000/storage/${image}`
 }
 

@@ -16,12 +16,13 @@ interface RecentOrder {
   user?: { id: number; name: string }
 }
 interface DashData {
-  today:        { revenue: number; orders: number }
-  this_month:   { revenue: number; orders: number }
-  products:     { total: number; low_stock: number; out: number }
+  today:        { revenue: number; profit: number; orders: number }
+  this_month:   { revenue: number; profit: number; orders: number }
+  products:     { total: number; low_stock: number; out: number; low_stock_items: {id: number, name: string, stock: number, sku: string}[] }
   chart:        ChartDay[]
   top_products: TopProduct[]
   recent_orders: RecentOrder[]
+  tenants?:     { total: number; active: number }
 }
 
 const data    = ref<DashData | null>(null)
@@ -114,6 +115,20 @@ onMounted(async () => { await auth.fetchUser(); load() })
           </div>
         </div>
 
+        <div class="scard green">
+          <div class="scard-icon success">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+              <polyline points="17 6 23 6 23 12"/>
+            </svg>
+          </div>
+          <div>
+            <p class="scard-label">Laba Kotor (Bulan Ini)</p>
+            <p class="scard-value">{{ fmtFull(data.this_month.profit) }}</p>
+            <p class="scard-sub">{{ fmtFull(data.today.profit) }} hari ini</p>
+          </div>
+        </div>
+
         <div class="scard">
           <div class="scard-icon muted">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -190,17 +205,35 @@ onMounted(async () => { await auth.fetchUser(); load() })
           </div>
         </div>
 
-        <div class="card">
-          <div class="card-head"><h3>Produk Terlaris</h3></div>
-          <div v-if="!data.top_products.length" class="card-empty">Belum ada transaksi</div>
-          <div v-else>
-            <div v-for="(p,i) in data.top_products" :key="p.name" class="top-row">
-              <span class="top-num">{{ i+1 }}</span>
-              <div class="top-info">
-                <p class="top-name">{{ p.name }}</p>
-                <p class="top-sub">{{ p.total_qty }} terjual</p>
+        <div class="side-col">
+          <div class="card">
+            <div class="card-head"><h3>Produk Terlaris</h3></div>
+            <div v-if="!data.top_products.length" class="card-empty">Belum ada transaksi</div>
+            <div v-else>
+              <div v-for="(p,i) in data.top_products" :key="p.name" class="top-row">
+                <span class="top-num">{{ i+1 }}</span>
+                <div class="top-info">
+                  <p class="top-name">{{ p.name }}</p>
+                  <p class="top-sub">{{ p.total_qty }} terjual</p>
+                </div>
+                <span class="top-rev">{{ fmt(p.total_revenue) }}</span>
               </div>
-              <span class="top-rev">{{ fmt(p.total_revenue) }}</span>
+            </div>
+          </div>
+
+          <div class="card alert-card" v-if="!auth.isSuperAdmin && data.products.low_stock > 0">
+            <div class="card-head">
+              <h3 class="text-warn">Peringatan Stok Menipis</h3>
+              <button class="btn-link" @click="router.push('/stock')">Cek stok →</button>
+            </div>
+            <div class="low-stock-list">
+              <div v-for="p in data.products.low_stock_items" :key="p.id" class="ls-item">
+                <div class="ls-info">
+                  <p class="ls-name">{{ p.name }}</p>
+                  <span class="ls-sku">{{ p.sku || '-' }}</span>
+                </div>
+                <div class="ls-stock">Sisa {{ p.stock }}</div>
+              </div>
             </div>
           </div>
         </div>
@@ -289,6 +322,7 @@ onMounted(async () => { await auth.fetchUser(); load() })
 }
 .scard:hover { box-shadow: 0 4px 16px rgba(0,0,0,.06); }
 .scard.accent { border-color: var(--accent-ring); background: var(--accent-bg); }
+.scard.green  { border-color: #bbf7d0; background: #f0fdf4; }
 .scard.warn   { border-color: #fde68a; background: #fffbeb; }
 
 .scard-icon {
@@ -298,11 +332,13 @@ onMounted(async () => { await auth.fetchUser(); load() })
   flex-shrink: 0; transition: background .3s, color .3s;
 }
 .scard-icon.muted   { background: var(--surface); color: var(--muted); }
+.scard-icon.success { background: #dcfce7; color: #16a34a; }
 .scard-icon.warn-i  { background: #fef3c7; color: #d97706; }
 
 .scard-label { font-size: 11.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
 .scard-value { font-size: 22px; font-weight: 800; letter-spacing: -.5px; color: var(--ink); line-height: 1.25; margin-top: 2px; }
 .scard.accent .scard-value { color: var(--accent-dark); }
+.scard.green .scard-value { color: #166534; }
 .scard-sub   { font-size: 12px; color: var(--muted); margin-top: 2px; }
 
 /* Card */
@@ -323,6 +359,7 @@ onMounted(async () => { await auth.fetchUser(); load() })
 .card-empty { padding: 28px; text-align: center; color: #d1d5db; font-size: 13px; }
 
 .mid-grid { display: grid; grid-template-columns: 1fr 320px; gap: 14px; margin-bottom: 20px; }
+.side-col { display: flex; flex-direction: column; gap: 14px; }
 
 /* Chart */
 .chart-area { padding: 16px 20px 8px; height: 200px; display: flex; align-items: flex-end; }
@@ -343,9 +380,20 @@ onMounted(async () => { await auth.fetchUser(); load() })
 .top-row:hover { background: var(--surface); }
 .top-num  { width: 22px; height: 22px; border-radius: 50%; background: var(--accent-bg); color: var(--accent); font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .top-info { flex: 1; min-width: 0; }
-.top-name { font-size: 13px; font-weight: 600; color: var(--ink); }
+.top-name { font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .top-sub  { font-size: 11.5px; color: var(--muted); }
 .top-rev  { font-size: 13px; font-weight: 700; color: var(--ink); white-space: nowrap; }
+
+/* Low Stock Alert */
+.alert-card { border-color: #fde68a; }
+.text-warn { color: #d97706 !important; }
+.low-stock-list { display: flex; flex-direction: column; max-height: 200px; overflow-y: auto; }
+.ls-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; border-bottom: 1px dashed var(--border); }
+.ls-item:last-child { border-bottom: none; }
+.ls-info { flex: 1; min-width: 0; }
+.ls-name { font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ls-sku { font-size: 11px; font-family: monospace; color: var(--muted); }
+.ls-stock { font-size: 12px; font-weight: 700; color: #dc2626; background: #fef2f2; padding: 2px 8px; border-radius: 6px; }
 
 /* Table */
 .table-wrap { overflow-x: auto; }

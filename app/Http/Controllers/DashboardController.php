@@ -15,23 +15,37 @@ class DashboardController extends Controller
     {
         $tenantId = $request->user()->tenant_id;
 
-        // Penjualan hari ini
+        // Penjualan & Profit hari ini
         $today = Order::when($tenantId, fn($q) => $q->where('tenant_id', $tenantId))
-            ->whereDate('created_at', today())
-            ->selectRaw('COUNT(*) as count, COALESCE(SUM(total_amount), 0) as revenue')
+            ->join('order_items', 'orders.id', '=', 'order_items.order_id')
+            ->whereDate('orders.created_at', today())
+            ->selectRaw('
+                COUNT(DISTINCT orders.id) as count,
+                COALESCE(SUM(order_items.subtotal), 0) as revenue,
+                COALESCE(SUM((order_items.unit_price - order_items.cost_price) * order_items.quantity), 0) as profit
+            ')
             ->first();
 
-        // Penjualan bulan ini
+        // Penjualan & Profit bulan ini
         $thisMonth = Order::when($tenantId, fn($q) => $q->where('tenant_id', $tenantId))
-            ->whereMonth('created_at', now()->month)
-            ->whereYear('created_at', now()->year)
-            ->selectRaw('COUNT(*) as count, COALESCE(SUM(total_amount), 0) as revenue')
+            ->join('order_items', 'orders.id', '=', 'order_items.order_id')
+            ->whereMonth('orders.created_at', now()->month)
+            ->whereYear('orders.created_at', now()->year)
+            ->selectRaw('
+                COUNT(DISTINCT orders.id) as count,
+                COALESCE(SUM(order_items.subtotal), 0) as revenue,
+                COALESCE(SUM((order_items.unit_price - order_items.cost_price) * order_items.quantity), 0) as profit
+            ')
             ->first();
 
         // Total produk & stok menipis (< 5)
         $totalProducts  = Product::when($tenantId, fn($q) => $q->where('tenant_id', $tenantId))->count();
-        $lowStockCount  = Product::when($tenantId, fn($q) => $q->where('tenant_id', $tenantId))
-            ->where('stock', '>', 0)->where('stock', '<', 5)->count();
+        $lowStockQuery  = Product::when($tenantId, fn($q) => $q->where('tenant_id', $tenantId))
+            ->where('stock', '>', 0)->where('stock', '<', 5);
+        
+        $lowStockCount = (clone $lowStockQuery)->count();
+        $lowStockItems = (clone $lowStockQuery)->select('id', 'name', 'stock', 'sku')->limit(10)->get();
+
         $outOfStockCount = Product::when($tenantId, fn($q) => $q->where('tenant_id', $tenantId))
             ->where('stock', 0)->count();
 
@@ -76,15 +90,18 @@ class DashboardController extends Controller
         return response()->json([
             'today' => [
                 'revenue'    => (float) $today->revenue,
+                'profit'     => (float) $today->profit,
                 'orders'     => (int)   $today->count,
             ],
             'this_month' => [
                 'revenue'    => (float) $thisMonth->revenue,
+                'profit'     => (float) $thisMonth->profit,
                 'orders'     => (int)   $thisMonth->count,
             ],
             'products' => [
                 'total'     => $totalProducts,
                 'low_stock' => $lowStockCount,
+                'low_stock_items' => $lowStockItems,
                 'out'       => $outOfStockCount,
             ],
             'tenants' => is_null($tenantId) ? [

@@ -5,10 +5,44 @@ import { useAuthStore } from '@/stores/auth'
 import { usePosStore, type Product } from '@/stores/pos'
 import { gsap } from 'gsap'
 import AppLayout from '@/components/AppLayout.vue'
+import { formatCurrencyInput, parseRupiah } from '@/utils/currency'
 
 const auth   = useAuthStore()
 const pos    = usePosStore()
 const router = useRouter()
+
+// ── Global Scanner Listener ──
+let scanBuffer = ''
+let scanTimer: ReturnType<typeof setTimeout> | null = null
+
+function handleGlobalKeydown(e: KeyboardEvent) {
+  // Ignore if user is typing in an input other than the search box (like customer name, discount)
+  const target = e.target as HTMLElement
+  if (target && target.tagName === 'INPUT' && target.id !== 'search-sku') return
+  if (target && target.tagName === 'TEXTAREA') return
+
+  if (e.key === 'Enter') {
+    if (scanBuffer.length > 2) {
+      // Process barcode
+      const scanned = scanBuffer.trim()
+      const p = pos.products.find(x => x.sku && x.sku.toLowerCase() === scanned.toLowerCase())
+      if (p) {
+        if (p.stock > 0) addToCart(p)
+        else alert(`Stok ${p.name} habis!`)
+      }
+      
+      scanBuffer = ''
+      searchQuery.value = ''
+    }
+  } else {
+    // Collect keystrokes for barcode scanner (scanners type very fast)
+    if (e.key.length === 1) {
+      scanBuffer += e.key
+      if (scanTimer) clearTimeout(scanTimer)
+      scanTimer = setTimeout(() => { scanBuffer = '' }, 100) // 100ms timeout for scanner speed
+    }
+  }
+}
 
 onMounted(async () => {
   await auth.fetchUser()
@@ -17,6 +51,13 @@ onMounted(async () => {
 
   gsap.from('.panel-products', { opacity: 0, x: -20, duration: 0.45, ease: 'power2.out', delay: 0.1 })
   gsap.from('.panel-order', { opacity: 0, x: 20, duration: 0.45, ease: 'power2.out', delay: 0.1 })
+
+  window.addEventListener('keydown', handleGlobalKeydown)
+})
+
+import { onUnmounted } from 'vue'
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleGlobalKeydown)
 })
 
 async function logout() {
@@ -131,13 +172,16 @@ function handleSearchEnter() {
   if (!q) return
   const exactSku = pos.products.find(p => p.sku && p.sku.toLowerCase() === q.toLowerCase())
   if (exactSku && exactSku.stock > 0) {
-    addToCart(exactSku)
+    addToCart(exactSku as Product)
     searchQuery.value = ''
     return
   }
-  if (filteredProducts.value.length === 1 && filteredProducts.value[0].stock > 0) {
-    addToCart(filteredProducts.value[0])
-    searchQuery.value = ''
+  if (filteredProducts.value.length === 1) {
+    const p = filteredProducts.value[0]
+    if (p && p.stock > 0) {
+      addToCart(p)
+      searchQuery.value = ''
+    }
   }
 }
 
@@ -205,6 +249,11 @@ async function confirmPay() {
 
 // ── Utils ──────────────────────────────────────────────
 function fmt(n: number) { return 'Rp\u00A0' + n.toLocaleString('id-ID') }
+
+function handleCurrencyInput(modelValue: string, updateFn: (val: string) => void) {
+  const formatted = formatCurrencyInput(modelValue)
+  updateFn(formatted)
+}
 
 function printReceipt() {
   if (!orderResult.value) return
@@ -293,7 +342,7 @@ function printReceipt() {
               stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-            <input v-model="searchQuery" @keydown.enter="handleSearchEnter" type="search" placeholder="Cari nama atau scan SKU/barcode…" class="search-inp" />
+            <input id="search-sku" v-model="searchQuery" @keydown.enter="handleSearchEnter" type="search" placeholder="Cari nama atau scan SKU/barcode…" class="search-inp" />
           </label>
         </div>
 
@@ -467,20 +516,20 @@ function printReceipt() {
               <button class="modal-x" @click="showShiftModal = false">✕</button>
             </div>
             <div class="modal-bd">
-              <div v-if="shiftModalMode === 'open'">
-                <p class="modal-desc">Masukkan jumlah uang tunai awal di laci kasir sebelum mulai berjualan.</p>
-                <div class="mfield">
-                  <label>Modal Awal (Rp)</label>
-                  <input v-model="startingCash" type="number" min="0" step="1000" placeholder="0" />
-                </div>
-              </div>
-              <div v-else>
-                <p class="modal-desc">Masukkan jumlah uang tunai yang ada di laci kasir saat ini untuk rekonsiliasi.</p>
-                <div class="mfield">
-                  <label>Uang di Laci (Rp)</label>
-                  <input v-model="endingCash" type="number" min="0" step="1000" placeholder="0" />
-                </div>
-              </div>
+               <div v-if="shiftModalMode === 'open'">
+                 <p class="modal-desc">Masukkan jumlah uang tunai awal di laci kasir sebelum mulai berjualan.</p>
+                 <div class="mfield">
+                   <label>Modal Awal (Rp)</label>
+                   <input v-model="startingCash" @input="handleCurrencyInput(startingCash, (v) => startingCash = v)" type="text" inputmode="numeric" placeholder="0" />
+                 </div>
+               </div>
+               <div v-else>
+                 <p class="modal-desc">Masukkan jumlah uang tunai yang ada di laci kasir saat ini untuk rekonsiliasi.</p>
+                 <div class="mfield">
+                   <label>Uang di Laci (Rp)</label>
+                   <input v-model="endingCash" @input="handleCurrencyInput(endingCash, (v) => endingCash = v)" type="text" inputmode="numeric" placeholder="0" />
+                 </div>
+               </div>
               <div v-if="shiftError" class="modal-err">{{ shiftError }}</div>
             </div>
             <div class="modal-ft">
@@ -524,7 +573,7 @@ function printReceipt() {
               </div>
               <div class="disc-input">
                 <span class="disc-prefix">{{ discountType === 'nominal' ? 'Rp' : '%' }}</span>
-                <input v-model="discountValue" type="number" min="0"
+                <input v-model="discountValue" @input="discountType === 'nominal' ? handleCurrencyInput(discountValue, (v) => discountValue = v) : null" type="text" inputmode="numeric" min="0"
                   :max="discountType === 'percent' ? 100 : total"
                   placeholder="0" />
               </div>
@@ -563,11 +612,11 @@ function printReceipt() {
               <p class="pay-label">UANG DITERIMA</p>
               <div class="disc-input">
                 <span class="disc-prefix">Rp</span>
-                <input class="pay-input" v-model="paidAmount" type="number" min="0" placeholder="0" />
+                <input class="pay-input" v-model="paidAmount" @input="handleCurrencyInput(paidAmount, (v) => paidAmount = v)" type="text" inputmode="numeric" placeholder="0" />
               </div>
               <!-- Quick amounts -->
               <div class="quick-amounts">
-                <button v-for="q in quickAmounts" :key="q" @click="paidAmount = String(q)">
+                <button v-for="q in quickAmounts" :key="q" @click="paidAmount = formatCurrencyInput(String(q))">
                   {{ fmt(q) }}
                 </button>
               </div>
