@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 import { usePosStore, type Product } from '@/stores/pos'
 import { gsap } from 'gsap'
 import AppLayout from '@/components/AppLayout.vue'
+import { formatCurrencyInput, parseRupiah } from '@/utils/currency'
 
 const auth   = useAuthStore()
 const pos    = usePosStore()
@@ -171,13 +172,16 @@ function handleSearchEnter() {
   if (!q) return
   const exactSku = pos.products.find(p => p.sku && p.sku.toLowerCase() === q.toLowerCase())
   if (exactSku && exactSku.stock > 0) {
-    addToCart(exactSku)
+    addToCart(exactSku as Product)
     searchQuery.value = ''
     return
   }
-  if (filteredProducts.value.length === 1 && filteredProducts.value[0].stock > 0) {
-    addToCart(filteredProducts.value[0])
-    searchQuery.value = ''
+  if (filteredProducts.value.length === 1) {
+    const p = filteredProducts.value[0]
+    if (p && p.stock > 0) {
+      addToCart(p)
+      searchQuery.value = ''
+    }
   }
 }
 
@@ -245,6 +249,11 @@ async function confirmPay() {
 
 // ── Utils ──────────────────────────────────────────────
 function fmt(n: number) { return 'Rp\u00A0' + n.toLocaleString('id-ID') }
+
+function handleCurrencyInput(modelValue: string, updateFn: (val: string) => void) {
+  const formatted = formatCurrencyInput(modelValue)
+  updateFn(formatted)
+}
 
 function printReceipt() {
   if (!orderResult.value) return
@@ -507,20 +516,20 @@ function printReceipt() {
               <button class="modal-x" @click="showShiftModal = false">✕</button>
             </div>
             <div class="modal-bd">
-              <div v-if="shiftModalMode === 'open'">
-                <p class="modal-desc">Masukkan jumlah uang tunai awal di laci kasir sebelum mulai berjualan.</p>
-                <div class="mfield">
-                  <label>Modal Awal (Rp)</label>
-                  <input v-model="startingCash" type="number" min="0" step="1000" placeholder="0" />
-                </div>
-              </div>
-              <div v-else>
-                <p class="modal-desc">Masukkan jumlah uang tunai yang ada di laci kasir saat ini untuk rekonsiliasi.</p>
-                <div class="mfield">
-                  <label>Uang di Laci (Rp)</label>
-                  <input v-model="endingCash" type="number" min="0" step="1000" placeholder="0" />
-                </div>
-              </div>
+               <div v-if="shiftModalMode === 'open'">
+                 <p class="modal-desc">Masukkan jumlah uang tunai awal di laci kasir sebelum mulai berjualan.</p>
+                 <div class="mfield">
+                   <label>Modal Awal (Rp)</label>
+                   <input v-model="startingCash" @input="handleCurrencyInput(startingCash, (v) => startingCash = v)" type="text" inputmode="numeric" placeholder="0" />
+                 </div>
+               </div>
+               <div v-else>
+                 <p class="modal-desc">Masukkan jumlah uang tunai yang ada di laci kasir saat ini untuk rekonsiliasi.</p>
+                 <div class="mfield">
+                   <label>Uang di Laci (Rp)</label>
+                   <input v-model="endingCash" @input="handleCurrencyInput(endingCash, (v) => endingCash = v)" type="text" inputmode="numeric" placeholder="0" />
+                 </div>
+               </div>
               <div v-if="shiftError" class="modal-err">{{ shiftError }}</div>
             </div>
             <div class="modal-ft">
@@ -564,7 +573,7 @@ function printReceipt() {
               </div>
               <div class="disc-input">
                 <span class="disc-prefix">{{ discountType === 'nominal' ? 'Rp' : '%' }}</span>
-                <input v-model="discountValue" type="number" min="0"
+                <input v-model="discountValue" @input="discountType === 'nominal' ? handleCurrencyInput(discountValue, (v) => discountValue = v) : null" type="text" inputmode="numeric" min="0"
                   :max="discountType === 'percent' ? 100 : total"
                   placeholder="0" />
               </div>
@@ -603,11 +612,11 @@ function printReceipt() {
               <p class="pay-label">UANG DITERIMA</p>
               <div class="disc-input">
                 <span class="disc-prefix">Rp</span>
-                <input class="pay-input" v-model="paidAmount" type="number" min="0" placeholder="0" />
+                <input class="pay-input" v-model="paidAmount" @input="handleCurrencyInput(paidAmount, (v) => paidAmount = v)" type="text" inputmode="numeric" placeholder="0" />
               </div>
               <!-- Quick amounts -->
               <div class="quick-amounts">
-                <button v-for="q in quickAmounts" :key="q" @click="paidAmount = String(q)">
+                <button v-for="q in quickAmounts" :key="q" @click="paidAmount = formatCurrencyInput(String(q))">
                   {{ fmt(q) }}
                 </button>
               </div>

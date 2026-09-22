@@ -30,6 +30,7 @@ body {
   --accent-dark: #1d4ed8;
   --accent-bg:   #eff6ff;
   --accent-ring: #bfdbfe;
+  --accent-rgb:  37, 99, 235;
 
   --ink:     #111827;
   --muted:   #6b7280;

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CashShift;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\Promotion;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -27,6 +28,7 @@ class OrderController extends Controller
             'cash_shift_id'              => 'required|exists:cash_shifts,id',
             'payment_method'             => 'required|in:cash,qris,transfer',
             'discount_amount'            => 'nullable|numeric|min:0',
+            'promo_code'                 => 'nullable|string',
             'products'                   => 'required|array|min:1',
             'products.*.product_id'      => 'required|exists:products,id',
             'products.*.quantity'        => 'required|integer|min:1',
@@ -62,6 +64,20 @@ class OrderController extends Controller
                 }
 
                 $discountAmount = min((float) ($data['discount_amount'] ?? 0), $total);
+                
+                // Jika ada promo_code, verifikasi dan timpa discountAmount
+                if (!empty($data['promo_code'])) {
+                    $promo = Promotion::where('code', $data['promo_code'])
+                        ->lockForUpdate()
+                        ->first();
+                    
+                    if (!$promo || !$promo->isValid($total)) {
+                        abort(422, "Kode promo tidak valid atau syarat tidak terpenuhi.");
+                    }
+                    $discountAmount = $promo->calculateDiscount($total);
+                    $promo->increment('used');
+                }
+
                 $finalTotal = max(0, $total - $discountAmount);
 
                 // Invoice number unik — ambil sequence terakhir hari ini (GLOBAL, tanpa tenant scope)

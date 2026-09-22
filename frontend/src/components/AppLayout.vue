@@ -255,6 +255,7 @@ function initial(name: string) {
   white-space: nowrap;
   overflow: hidden;
   flex: 1;
+  min-width: 0;
 }
 
 .toggle-btn {
@@ -379,6 +380,9 @@ function initial(name: string) {
   display: none;
 }
 
+.sidebar-collapsed .sb-brand { padding: 16px 8px; gap: 0; }
+.sidebar-collapsed .brand-mark { flex-shrink: 0; }
+.sidebar-collapsed .toggle-btn { display: flex; }
 .sidebar-collapsed .sb-nav { padding: 12px 4px; }
 .sidebar-collapsed .nav-item { justify-content: center; padding: 8px; }
 .sidebar-collapsed .sb-user { padding: 12px 8px; justify-content: center; }

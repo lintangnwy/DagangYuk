@@ -9,6 +9,7 @@ interface ThemeTokens {
   accentDark: string
   accentBg:   string
   accentRing: string
+  accentRgb:  string
 }
 
 export const themes: Record<ThemeKey, ThemeTokens> = {
@@ -18,6 +19,7 @@ export const themes: Record<ThemeKey, ThemeTokens> = {
     accentDark: '#1d4ed8',
     accentBg:   '#eff6ff',
     accentRing: '#bfdbfe',
+    accentRgb:  '37, 99, 235',
   },
   green: {
     label:      'Hijau',
@@ -25,6 +27,7 @@ export const themes: Record<ThemeKey, ThemeTokens> = {
     accentDark: '#15803d',
     accentBg:   '#f0fdf4',
     accentRing: '#bbf7d0',
+    accentRgb:  '22, 163, 74',
   },
   purple: {
     label:      'Ungu',
@@ -32,6 +35,7 @@ export const themes: Record<ThemeKey, ThemeTokens> = {
     accentDark: '#6d28d9',
     accentBg:   '#f5f3ff',
     accentRing: '#ddd6fe',
+    accentRgb:  '124, 58, 237',
   },
   orange: {
     label:      'Oranye',
@@ -39,6 +43,7 @@ export const themes: Record<ThemeKey, ThemeTokens> = {
     accentDark: '#c2410c',
     accentBg:   '#fff7ed',
     accentRing: '#fed7aa',
+    accentRgb:  '234, 88, 12',
   },
 }
 
@@ -53,6 +58,7 @@ export const useThemeStore = defineStore('theme', () => {
     root.style.setProperty('--accent-dark', t.accentDark)
     root.style.setProperty('--accent-bg',   t.accentBg)
     root.style.setProperty('--accent-ring', t.accentRing)
+    root.style.setProperty('--accent-rgb',  t.accentRgb)
   }
 
   function setTheme(key: ThemeKey) {

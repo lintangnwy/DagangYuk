@@ -28,7 +28,7 @@ class ReportController extends Controller
 
         // Summary (Total Revenue, Total Cost, Total Profit)
         $summary = Order::when($tenantId, fn($q) => $q->where('tenant_id', $tenantId))
-            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->whereBetween('orders.created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
             ->join('order_items', 'orders.id', '=', 'order_items.order_id')
             ->selectRaw('
                 COALESCE(SUM(order_items.subtotal), 0) as revenue,

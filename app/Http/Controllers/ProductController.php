@@ -9,17 +9,18 @@ use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        return response()->json(
-            Product::with('category:id,name')->get()
-        );
+        $products = Product::with('category:id,name')->get();
+        if ($request->user() && $request->user()->role->name === 'user') {
+            $products->makeHidden('cost_price');
+        }
+        return response()->json($products);
     }
 
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'tenant_id'   => 'required|exists:tenants,id',
             'category_id' => 'nullable|exists:categories,id',
             'name'        => 'required|string|max:255',
             'sku'         => 'nullable|string|max:100',
@@ -28,6 +29,8 @@ class ProductController extends Controller
             'stock'       => 'nullable|integer|min:0',
             'image'       => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
         ]);
+
+        $validated['tenant_id'] = $request->user()->tenant_id;
 
         if ($request->hasFile('image')) {
             $validated['image'] = $request->file('image')->store('products', 'public');
@@ -41,11 +44,13 @@ class ProductController extends Controller
         ], 201);
     }
 
-    public function show(int $id): JsonResponse
+    public function show(Request $request, int $id): JsonResponse
     {
-        return response()->json(
-            Product::with('category:id,name')->findOrFail($id)
-        );
+        $product = Product::with('category:id,name')->findOrFail($id);
+        if ($request->user() && $request->user()->role->name === 'user') {
+            $product->makeHidden('cost_price');
+        }
+        return response()->json($product);
     }
 
     public function update(Request $request, int $id): JsonResponse
@@ -53,7 +58,6 @@ class ProductController extends Controller
         $product = Product::findOrFail($id);
 
         $validated = $request->validate([
-            'tenant_id'   => 'required|exists:tenants,id',
             'category_id' => 'nullable|exists:categories,id',
             'name'        => 'required|string|max:255',
             'sku'         => 'nullable|string|max:100',

@@ -17,9 +17,10 @@ class CategoryController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'tenant_id' => 'required|exists:tenants,id',
             'name' => 'required|string|max:255',
         ]);
+        
+        $data['tenant_id'] = $request->user()->tenant_id;
 
         $category = Category::create($data);
 
@@ -41,7 +42,6 @@ class CategoryController extends Controller
         $category = Category::findOrFail($id);
 
         $data = $request->validate([
-            'tenant_id' => 'required|exists:tenants,id',
             'name' => 'required|string|max:255',
         ]);
 
