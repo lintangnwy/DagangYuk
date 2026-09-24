@@ -349,7 +349,9 @@ thead { background: var(--surface); }
 th { text-align: left; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); padding: 12px 20px; border-bottom: 1px solid var(--border); }
 td { padding: 14px 20px; border-bottom: 1px solid var(--border); font-size: 14px; }
 tr:last-child td { border-bottom: none; }
-tr:hover td { background: var(--surface); }
+tbody tr:focus-within td,
+tbody tr:hover td { background: var(--surface); }
+tbody tr { outline: none; }
 
 .right { text-align: right; }
 .fw { font-weight: 600; }

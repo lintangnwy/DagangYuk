@@ -18,17 +18,29 @@ interface Order {
   id: number
   invoice_number: string
   total_amount: number
+  discount_amount?: number
   payment_method: string
+  payment_status: string
   created_at: string
   user?: { id: number; name: string }
+  branch?: { id: number; name: string }
   items: OrderItem[]
 }
 
-const orders  = ref<Order[]>([])
-const loading = ref(true)
-const error   = ref('')
-const search  = ref('')
+const orders     = ref<Order[]>([])
+const loading    = ref(true)
+const error      = ref('')
+const search     = ref('')
 const expandedId = ref<number | null>(null)
+
+// ── Return modal state ──────────────────────────────────
+const returnModal  = ref(false)
+const returnOrder  = ref<Order | null>(null)
+const returnReason = ref('')
+const itemCondition = ref<'sellable' | 'damaged'>('sellable')
+const returning    = ref(false)
+const returnError  = ref('')
+const returnSuccess = ref('')
 
 const filtered = computed(() => {
   const q = search.value.toLowerCase()
@@ -64,6 +76,50 @@ function fmtDate(d: string) {
 
 function payLabel(m: string) {
   return ({ cash: 'Tunai', qris: 'QRIS', transfer: 'Transfer' } as Record<string, string>)[m] ?? m
+}
+
+function statusLabel(s: string) {
+  return ({ paid: 'Lunas', pending: 'Tertunda', refunded: 'Direfund', cancelled: 'Dibatalkan' } as Record<string, string>)[s] ?? s
+}
+
+// ── Return ─────────────────────────────────────────────
+function openReturn(order: Order) {
+  returnOrder.value  = order
+  returnReason.value = ''
+  returnError.value  = ''
+  returnSuccess.value = ''
+  returnModal.value  = true
+}
+
+function closeReturn() {
+  returnModal.value = false
+  returnOrder.value = null
+  itemCondition.value = 'sellable'
+}
+
+async function submitReturn() {
+  if (!returnReason.value.trim()) {
+    returnError.value = 'Alasan return wajib diisi.'
+    return
+  }
+  returning.value   = true
+  returnError.value = ''
+  try {
+    await api.post('/returns/process', {
+      order_id: returnOrder.value!.id,
+      reason: returnReason.value,
+      item_condition: itemCondition.value,
+    })
+    returnSuccess.value = 'Return berhasil! Stok telah dikembalikan sesuai kondisi.'
+    // Update status lokal tanpa reload penuh
+    const found = orders.value.find(o => o.id === returnOrder.value?.id)
+    if (found) found.payment_status = 'refunded'
+    setTimeout(() => closeReturn(), 1500)
+  } catch (e: any) {
+    returnError.value = e.response?.data?.message ?? 'Gagal memproses return.'
+  } finally {
+    returning.value = false
+  }
 }
 
 function printOrder(order: Order) {
@@ -149,8 +205,27 @@ onMounted(async () => { await auth.fetchUser(); load() })
             </div>
             <div class="order-meta">
               <span class="pay-badge" :class="order.payment_method">{{ payLabel(order.payment_method) }}</span>
+              <span class="status-badge" :class="order.payment_status">{{ statusLabel(order.payment_status) }}</span>
+              <span v-if="order.branch" class="branch-tag">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+                {{ order.branch.name }}
+              </span>
               <span class="kasir-name">{{ order.user?.name ?? '—' }}</span>
               <span class="total-amt">{{ fmt(order.total_amount) }}</span>
+
+              <!-- Return button - only for paid orders -->
+              <button
+                v-if="order.payment_status === 'paid' && auth.isAdmin"
+                class="return-btn"
+                @click.stop="openReturn(order)"
+                title="Return Pesanan"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/>
+                </svg>
+                Return
+              </button>
+
               <button class="print-btn" @click.stop="printOrder(order)" title="Cetak Struk">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="6 9 6 2 18 2 18 9"/>
@@ -190,6 +265,77 @@ onMounted(async () => { await auth.fetchUser(); load() })
       </div>
     </div>
 
+    <!-- Return Modal -->
+    <Teleport to="body">
+      <Transition name="modal-fade">
+        <div v-if="returnModal" class="modal-backdrop" @click.self="closeReturn">
+          <div class="modal-box">
+            <div class="modal-header">
+              <div class="modal-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/>
+                </svg>
+                Return Pesanan
+              </div>
+              <button class="modal-close" @click="closeReturn">✕</button>
+            </div>
+
+            <div class="modal-body">
+              <div v-if="returnSuccess" class="alert-success">{{ returnSuccess }}</div>
+              <div v-else>
+                <div class="return-info">
+                  <div class="return-info-row">
+                    <span>Invoice</span>
+                    <strong>{{ returnOrder?.invoice_number }}</strong>
+                  </div>
+                  <div class="return-info-row">
+                    <span>Total</span>
+                    <strong>{{ returnOrder ? fmt(returnOrder.total_amount) : '' }}</strong>
+                  </div>
+                  <div class="return-info-row">
+                    <span>Kasir</span>
+                    <strong>{{ returnOrder?.user?.name ?? '—' }}</strong>
+                  </div>
+                </div>
+
+                <div class="return-warning">
+                  Stok semua produk dalam pesanan ini akan dikembalikan ke sistem.
+                  Tindakan ini tidak dapat dibatalkan.
+                </div>
+
+                <div class="input-group">
+                  <label>Kondisi Barang <span class="req">*</span></label>
+                  <select v-model="itemCondition" class="form-select">
+                    <option value="sellable">Masih Bagus (Kembalikan ke stok layak jual)</option>
+                    <option value="damaged">Rusak / Expired (Masukkan ke gudang barang rusak)</option>
+                  </select>
+                </div>
+
+                <div class="input-group">
+                  <label>Alasan Return <span class="req">*</span></label>
+                  <textarea
+                    v-model="returnReason"
+                    placeholder="Contoh: Produk cacat, salah pesan, pelanggan komplain..."
+                    rows="3"
+                  />
+                </div>
+
+                <div v-if="returnError" class="alert-err-sm">{{ returnError }}</div>
+
+                <div class="modal-actions">
+                  <button class="btn-cancel" @click="closeReturn" :disabled="returning">Batal</button>
+                  <button class="btn-return" @click="submitReturn" :disabled="returning">
+                    <span v-if="returning">Memproses...</span>
+                    <span v-else>Konfirmasi Return</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
   </AppLayout>
 </template>
 
@@ -220,7 +366,6 @@ onMounted(async () => { await auth.fetchUser(); load() })
 .tcard { background: var(--white); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
 .empty-state { text-align: center; padding: 52px; color: #d1d5db; font-size: 14px; }
 
-/* Order rows */
 .order-row { border-bottom: 1px solid var(--border); }
 .order-row:last-child { border-bottom: none; }
 
@@ -235,15 +380,36 @@ onMounted(async () => { await auth.fetchUser(); load() })
 .inv-num  { font-size: 13.5px; font-weight: 700; color: var(--ink); font-family: monospace; }
 .inv-date { font-size: 11.5px; color: var(--muted); }
 
-.order-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.order-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 .pay-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 600; }
 .pay-badge.cash     { background: var(--accent-bg); color: var(--accent-dark); }
 .pay-badge.qris     { background: #ede9fe; color: #7c3aed; }
 .pay-badge.transfer { background: #fef3c7; color: #d97706; }
 
+.status-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 600; }
+.status-badge.paid      { background: #dcfce7; color: #16a34a; }
+.status-badge.pending   { background: #fef9c3; color: #ca8a04; }
+.status-badge.refunded  { background: #fee2e2; color: #dc2626; }
+.status-badge.cancelled { background: #f3f4f6; color: #6b7280; }
+
+.branch-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11.5px; color: var(--muted);
+  background: var(--surface); border: 1px solid var(--border);
+  padding: 2px 8px; border-radius: 6px;
+}
+
 .kasir-name { font-size: 12.5px; color: var(--muted); }
 .total-amt  { font-size: 14px; font-weight: 800; color: var(--ink); white-space: nowrap; }
+
+.return-btn {
+  display: flex; align-items: center; gap: 5px;
+  background: #fef2f2; border: 1px solid #fecaca; color: #dc2626;
+  padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all .15s; white-space: nowrap;
+}
+.return-btn:hover { background: #fee2e2; border-color: #dc2626; }
 
 .print-btn {
   background: none; border: 1px solid var(--border); color: var(--muted);
@@ -262,7 +428,6 @@ onMounted(async () => { await auth.fetchUser(); load() })
   padding: 0 18px 14px;
   overflow: hidden;
 }
-
 .order-items table { width: 100%; border-collapse: collapse; margin-top: 12px; }
 .order-items th {
   text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase;
@@ -272,17 +437,86 @@ onMounted(async () => { await auth.fetchUser(); load() })
 .order-items td { padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13.5px; }
 .order-items tr:last-child td { border-bottom: none; }
 .order-items tfoot td { font-size: 14px; padding-top: 10px; border-top: 1px solid var(--border); }
-
 .center { text-align: center; }
 .fw { font-weight: 700; }
 .total-label { color: var(--muted); font-size: 13px; }
 .accent { color: var(--accent); font-size: 15px; }
 
-/* Expand animation */
+/* Modal */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,.45);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999; padding: 16px;
+}
+.modal-box {
+  background: var(--white); border-radius: 14px;
+  width: 100%; max-width: 460px;
+  box-shadow: 0 24px 60px rgba(0,0,0,.18);
+  overflow: hidden;
+}
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 22px; border-bottom: 1px solid var(--border);
+}
+.modal-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 15px; font-weight: 700; color: var(--ink);
+}
+.modal-close {
+  background: none; border: none; color: var(--muted);
+  font-size: 16px; cursor: pointer; padding: 4px 8px; border-radius: 6px;
+}
+.modal-close:hover { background: var(--surface); }
+.modal-body { padding: 22px; }
+
+.return-info { background: var(--surface); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; }
+.return-info-row { display: flex; justify-content: space-between; font-size: 13.5px; padding: 4px 0; }
+.return-info-row span { color: var(--muted); }
+
+.return-warning {
+  background: #fef9c3; border: 1px solid #fde68a; color: #92400e;
+  font-size: 12.5px; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px;
+}
+
+.input-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.input-group label { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.req { color: #dc2626; }
+.input-group textarea, .form-select {
+  width: 100%; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 8px;
+  font-size: 13.5px; color: var(--ink); background: var(--white);
+  outline: none; resize: vertical; font-family: inherit;
+  transition: border-color .15s;
+}
+.input-group textarea:focus, .form-select:focus { border-color: var(--accent); }
+
+.alert-err-sm { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; font-size: 12.5px; padding: 8px 12px; border-radius: 7px; margin-bottom: 12px; }
+.alert-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #16a34a; font-size: 13.5px; padding: 14px 16px; border-radius: 8px; text-align: center; font-weight: 600; }
+
+.modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+.btn-cancel {
+  flex: 1; height: 40px; background: none; border: 1.5px solid var(--border);
+  color: var(--muted); border-radius: 8px; font-size: 14px; cursor: pointer;
+  transition: all .15s;
+}
+.btn-cancel:hover { border-color: var(--ink); color: var(--ink); }
+.btn-return {
+  flex: 2; height: 40px; background: #dc2626; border: none; color: white;
+  border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: background .15s;
+}
+.btn-return:hover { background: #b91c1c; }
+.btn-return:disabled { opacity: .6; cursor: not-allowed; }
+
+/* Animations */
 .expand-enter-active { transition: all .22s ease-out; }
 .expand-leave-active  { transition: all .18s ease-in; }
 .expand-enter-from   { opacity: 0; max-height: 0; }
 .expand-leave-to     { opacity: 0; max-height: 0; }
+
+.modal-fade-enter-active { transition: opacity .2s ease; }
+.modal-fade-leave-active  { transition: opacity .15s ease; }
+.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 </style>

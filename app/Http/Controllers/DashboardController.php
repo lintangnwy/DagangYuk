@@ -14,6 +14,8 @@ class DashboardController extends Controller
     public function index(Request $request): JsonResponse
     {
         $tenantId = $request->user()->tenant_id;
+        $user = $request->user();
+        $canViewCost = $user->hasPermission('shop.cost.view');
         
         // Get date range filter from query params
         $rangeType = $request->query('range', 'today'); // today, this_week, this_month, last_month, custom
@@ -26,6 +28,9 @@ class DashboardController extends Controller
             $end = \Carbon\Carbon::createFromFormat('Y-m-d', $endDate)->endOfDay();
         } elseif ($rangeType === 'today') {
             $start = now()->startOfDay();
+            $end = now()->endOfDay();
+        } elseif ($rangeType === 'last_7_days') {
+            $start = now()->subDays(6)->startOfDay();
             $end = now()->endOfDay();
         } elseif ($rangeType === 'this_week') {
             $start = now()->startOfWeek();
@@ -52,7 +57,7 @@ class DashboardController extends Controller
             ')
             ->first();
 
-        // Penjualan & Profit hari ini (always show for comparison)
+        // Penjualan & Profit hari ini
         $today = Order::when($tenantId, fn($q) => $q->where('tenant_id', $tenantId))
             ->join('order_items', 'orders.id', '=', 'order_items.order_id')
             ->whereDate('orders.created_at', now()->toDateString())
@@ -76,7 +81,9 @@ class DashboardController extends Controller
 
         // Calculate chart days based on range type
         $days = 7;
-        if ($rangeType === 'this_week') {
+        if ($rangeType === 'last_7_days') {
+            $days = 7;
+        } elseif ($rangeType === 'this_week') {
             $days = now()->diffInDays(now()->startOfWeek()) + 1;
         } elseif ($rangeType === 'this_month') {
             $days = now()->day;
@@ -109,7 +116,7 @@ class DashboardController extends Controller
             ];
         }
 
-        // 5 produk terlaris (dalam range)
+        // 5 produk terlaris
         $topProducts = DB::table('order_items')
             ->join('products', 'order_items.product_id', '=', 'products.id')
             ->join('orders', 'order_items.order_id', '=', 'orders.id')
@@ -121,7 +128,7 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        // Transaksi terbaru (dalam range)
+        // Transaksi terbaru
         $recentOrders = Order::with('user:id,name')
             ->when($tenantId, fn($q) => $q->where('tenant_id', $tenantId))
             ->whereBetween('created_at', [$start, $end])
@@ -138,39 +145,36 @@ class DashboardController extends Controller
             ],
             'current' => [
                 'revenue'    => (float) $rangeData->revenue,
-                'profit'     => (float) $rangeData->profit,
+                'profit'     => $canViewCost ? (float) $rangeData->profit : null,
                 'orders'     => (int)   $rangeData->count,
             ],
             'today' => [
                 'revenue'    => (float) $today->revenue,
-                'profit'     => (float) $today->profit,
+                'profit'     => $canViewCost ? (float) $today->profit : null,
                 'orders'     => (int)   $today->count,
             ],
-            'products' => [
-                'total'     => $totalProducts,
-                'low_stock' => $lowStockCount,
-                'low_stock_items' => $lowStockItems,
-                'out'       => $outOfStockCount,
+            'inventory' => [
+                'total_products'    => $totalProducts,
+                'low_stock_count'   => $lowStockCount,
+                'out_of_stock_count'=> $outOfStockCount,
+                'low_stock_items'   => $lowStockItems,
             ],
-            'tenants' => is_null($tenantId) ? [
-                'total'  => \App\Models\Tenant::count(),
-                'active' => \App\Models\Tenant::where('is_active', true)->count(),
-            ] : null,
-            'chart'         => $chartData,
-            'top_products'  => $topProducts,
-            'recent_orders' => $recentOrders,
+            'chart'        => $chartData,
+            'top_products' => $topProducts,
+            'recent_orders'=> $recentOrders,
         ]);
     }
 
     private function getRangeLabel(string $rangeType, \Carbon\Carbon $start, \Carbon\Carbon $end): string
     {
-        return match($rangeType) {
-            'today' => 'Hari Ini',
-            'this_week' => 'Minggu Ini',
-            'this_month' => 'Bulan Ini',
-            'last_month' => 'Bulan Lalu',
-            'custom' => $start->format('d M Y') . ' - ' . $end->format('d M Y'),
-            default => 'Periode',
+        return match ($rangeType) {
+            'today'      => 'Hari Ini (' . $start->format('d M Y') . ')',
+            'last_7_days'=> '7 Hari Terakhir',
+            'this_week'  => 'Minggu Ini',
+            'this_month' => 'Bulan Ini (' . $start->format('F Y') . ')',
+            'last_month' => 'Bulan Lalu (' . $start->format('F Y') . ')',
+            'custom'     => $start->format('d M Y') . ' s/d ' . $end->format('d M Y'),
+            default      => 'Hari Ini',
         };
     }
 }

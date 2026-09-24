@@ -3,16 +3,16 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import AppLayout from '@/components/AppLayout.vue'
+import api from '@/utils/axios'
 
 const auth = useAuthStore()
 const route = useRoute()
-const API  = 'http://localhost:8000/api'
 const IMG  = 'http://localhost:8000/storage'
 
 interface Category { id: number; name: string }
 interface Product  {
   id: number; name: string; sku: string | null
-  price: number; cost_price: number; stock: number
+  price: number; cost_price: number; stock: number;
   image: string | null; category_id: number | null
   category?: Category
 }
@@ -24,9 +24,6 @@ const catSaving  = ref(false)
 const error      = ref('')
 const stockFilter = ref<'all' | 'low_stock' | 'out_of_stock'>('all')
 
-function authH(): HeadersInit {
-  return { Authorization: `Bearer ${auth.token}`, Accept: 'application/json' }
-}
 
 // ── Produk ────────────────────────────────────────────
 const products   = ref<Product[]>([])
@@ -57,14 +54,11 @@ const delProdTarget = ref<Product | null>(null)
 async function loadProducts() {
   loading.value = true; error.value = ''
   try {
-    const [pR, cR] = await Promise.all([
-      fetch(`${API}/products`,   { headers: authH() }),
-      fetch(`${API}/categories`, { headers: authH() }),
-    ])
-    if (!pR.ok) throw new Error('Gagal memuat produk.')
-    products.value   = await pR.json()
-    categories.value = cR.ok ? await cR.json() : []
-  } catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Error.' }
+    const pR = await api.get('/products')
+    products.value   = pR.data
+    const cR = await api.get('/categories')
+    categories.value = cR.data
+  } catch (e: any) { error.value = e.response?.data?.message ?? 'Gagal memuat produk.' }
   finally { loading.value = false }
 }
 
@@ -95,16 +89,16 @@ async function saveProd() {
     fd.append('price', prodForm.value.price)
     fd.append('cost_price', prodForm.value.cost_price || '0')
     fd.append('stock', prodForm.value.stock || '0')
-    fd.append('tenant_id', String(auth.user?.tenant_id ?? 1))
     if (prodForm.value.sku)         fd.append('sku', prodForm.value.sku)
     if (prodForm.value.category_id) fd.append('category_id', String(prodForm.value.category_id))
     if (imageFile.value)            fd.append('image', imageFile.value)
-    const url = editProd.value ? `${API}/products/${editProd.value.id}` : `${API}/products`
-    const res = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${auth.token}`, Accept: 'application/json' }, body: fd })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.message ?? 'Gagal menyimpan.')
+    if (editProd.value) {
+      await api.post(`/products/${editProd.value.id}`, fd)
+    } else {
+      await api.post('/products', fd)
+    }
     showProdModal.value = false; await loadProducts()
-  } catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Error.' }
+  } catch (e: any) { error.value = e.response?.data?.message ?? 'Gagal menyimpan.' }
   finally { saving.value = false }
 }
 
@@ -112,8 +106,10 @@ function confirmDelProd(p: Product) { delProdTarget.value = p; showDelProd.value
 
 async function doDelProd() {
   if (!delProdTarget.value) return
-  await fetch(`${API}/products/${delProdTarget.value.id}`, { method: 'DELETE', headers: authH() })
-  products.value = products.value.filter(p => p.id !== delProdTarget.value!.id)
+  try {
+    await api.delete(`/products/${delProdTarget.value.id}`)
+    products.value = products.value.filter(p => p.id !== delProdTarget.value!.id)
+  } catch (e: any) { error.value = e.response?.data?.message ?? 'Gagal menghapus.' }
   showDelProd.value = false; delProdTarget.value = null
 }
 
@@ -137,15 +133,15 @@ async function saveCat() {
   if (!catForm.value.name.trim()) return
   catSaving.value = true; error.value = ''
   try {
-    const body = JSON.stringify({ name: catForm.value.name, tenant_id: auth.user?.tenant_id ?? 1 })
-    const url  = editCat.value ? `${API}/categories/${editCat.value.id}` : `${API}/categories`
-    const res  = await fetch(url, { method: editCat.value ? 'PUT' : 'POST', headers: { ...authH(), 'Content-Type': 'application/json' }, body })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.message ?? 'Gagal menyimpan.')
+    if (editCat.value) {
+      await api.put(`/categories/${editCat.value.id}`, { name: catForm.value.name })
+    } else {
+      await api.post('/categories', { name: catForm.value.name })
+    }
     showCatModal.value = false
-    const r = await fetch(`${API}/categories`, { headers: authH() })
-    if (r.ok) categories.value = await r.json()
-  } catch (e: unknown) { error.value = e instanceof Error ? e.message : 'Error.' }
+    const r = await api.get('/categories')
+    categories.value = r.data
+  } catch (e: any) { error.value = e.response?.data?.message ?? 'Gagal menyimpan.' }
   finally { catSaving.value = false }
 }
 
@@ -153,16 +149,16 @@ function confirmDelCat(c: Category) { delCatTarget.value = c; showDelCat.value =
 
 async function doDelCat() {
   if (!delCatTarget.value) return
-  const res = await fetch(`${API}/categories/${delCatTarget.value.id}`, { method: 'DELETE', headers: authH() })
-  if (res.ok) categories.value = categories.value.filter(c => c.id !== delCatTarget.value!.id)
-  else { const d = await res.json(); error.value = d.message ?? 'Gagal menghapus.' }
+  try {
+    await api.delete(`/categories/${delCatTarget.value.id}`)
+    categories.value = categories.value.filter(c => c.id !== delCatTarget.value!.id)
+  } catch (e: any) { error.value = e.response?.data?.message ?? e.message ?? 'Gagal menghapus.' }
   showDelCat.value = false; delCatTarget.value = null
 }
 
 function fmt(n: number) { return 'Rp\u00A0' + n.toLocaleString('id-ID') }
 
 onMounted(async () => { 
-  await auth.fetchUser()
   const filterParam = route.query.filter as string
   if (filterParam === 'low_stock') {
     stockFilter.value = 'low_stock'

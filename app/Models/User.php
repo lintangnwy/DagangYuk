@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\HasPermissions;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -11,7 +12,7 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, HasPermissions;
 
     protected $fillable = [
         'name',
@@ -24,6 +25,13 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+    ];
+
+    /**
+     * Permission role ikut dikirim saat model di-serialize (login, /user).
+     */
+    protected $appends = [
+        'permissions',
     ];
 
     protected function casts(): array

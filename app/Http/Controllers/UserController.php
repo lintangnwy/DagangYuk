@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\Tenant;
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
@@ -65,6 +66,8 @@ class UserController extends Controller
 
         $user = User::create($data);
 
+        ActivityLogger::log('USER_CREATE', "Menambahkan user baru: {$user->name} ({$user->email})");
+
         return response()->json([
             'message' => 'User berhasil ditambahkan',
             'data'    => $user->load(['role', 'tenant']),
@@ -109,6 +112,8 @@ class UserController extends Controller
 
         $user->update($data);
 
+        ActivityLogger::log('USER_UPDATE', "Mengubah data user: {$user->name} ({$user->email})");
+
         return response()->json([
             'message' => 'User berhasil diubah',
             'data'    => $user->load(['role', 'tenant']),
@@ -127,7 +132,11 @@ class UserController extends Controller
             ], 403);
         }
 
+        $name = $user->name;
+        $email = $user->email;
         $user->delete();
+
+        ActivityLogger::log('USER_DELETE', "Menghapus user: {$name} ({$email})");
 
         return response()->json([
             'message' => 'User berhasil dihapus'

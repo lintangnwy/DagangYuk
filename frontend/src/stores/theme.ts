@@ -14,12 +14,12 @@ interface ThemeTokens {
 
 export const themes: Record<ThemeKey, ThemeTokens> = {
   blue: {
-    label:      'Biru',
-    accent:     '#2563eb',
-    accentDark: '#1d4ed8',
-    accentBg:   '#eff6ff',
-    accentRing: '#bfdbfe',
-    accentRgb:  '37, 99, 235',
+    label:      'Indigo Blue',
+    accent:     '#4f46e5',
+    accentDark: '#4338ca',
+    accentBg:   '#eef2ff',
+    accentRing: '#c7d2fe',
+    accentRgb:  '79, 70, 229',
   },
   green: {
     label:      'Hijau',

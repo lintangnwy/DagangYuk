@@ -20,6 +20,9 @@ class Order extends Model
         'total_amount',
         'discount_amount',
         'payment_method',
+        'payment_status',
+        'midtrans_token',
+        'midtrans_url',
     ];
 
     protected $casts = [

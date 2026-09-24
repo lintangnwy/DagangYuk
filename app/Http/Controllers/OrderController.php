@@ -34,7 +34,10 @@ class OrderController extends Controller
             'products.*.quantity'        => 'required|integer|min:1',
         ]);
 
-        $shift = CashShift::findOrFail($data['cash_shift_id']);
+        $shift = CashShift::whereKey($data['cash_shift_id'])
+            ->where('tenant_id', $request->user()->tenant_id)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
 
         if ($shift->status !== 'open') {
             return response()->json(['message' => 'Shift kasir sudah ditutup.'], 422);
@@ -104,6 +107,7 @@ class OrderController extends Controller
                     'total_amount'    => $finalTotal,
                     'discount_amount' => $discountAmount,
                     'payment_method'  => $data['payment_method'],
+                    'payment_status'  => $data['payment_method'] === 'cash' ? 'paid' : 'pending',
                 ]);
 
                 foreach ($items as $item) {
