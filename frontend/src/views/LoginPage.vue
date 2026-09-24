@@ -1,171 +1,133 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { gsap } from 'gsap'
 import ThemeSwitcher from '@/components/ThemeSwitcher.vue'
 
 const router = useRouter()
-const auth   = useAuthStore()
+const auth = useAuthStore()
 
-const email        = ref('')
-const password     = ref('')
+const email = ref('')
+const password = ref('')
 const showPassword = ref(false)
-const isLoading    = ref(false)
+const isLoading = ref(false)
 const errorMessage = ref('')
-
-onMounted(() => {
-  const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
-  tl.from('.split-left',  { x: '-100%', duration: 0.8 })
-    .from('.split-right', { opacity: 0, duration: 0.8 }, '-=0.4')
-    .from('.form-stagger', { opacity: 0, y: 15, stagger: 0.1, duration: 0.5 }, '-=0.4')
-})
+const successMessage = ref('')
 
 async function handleLogin() {
   if (!email.value || !password.value) {
     errorMessage.value = 'Email dan password wajib diisi.'
     return
   }
+  
   errorMessage.value = ''
-  isLoading.value    = true
+  successMessage.value = ''
+  isLoading.value = true
+
   try {
     await auth.login(email.value, password.value)
-    router.push('/dashboard')
-  } catch (err: unknown) {
-    errorMessage.value = err instanceof Error ? err.message : 'Kredensial tidak valid.'
+    successMessage.value = 'Login berhasil! Mengalihkan...'
+    setTimeout(() => {
+      router.push('/dashboard')
+    }, 500)
+  } catch (err: any) {
+    errorMessage.value = err.response?.data?.message || 'Email atau password salah.'
   } finally {
     isLoading.value = false
   }
 }
+
+function togglePassword() {
+  showPassword.value = !showPassword.value
+}
 </script>
 
 <template>
-  <div class="auth-layout">
-    <!-- Left Visual Panel -->
-    <div class="split-left">
-      <div class="brand-area">
-        <RouterLink to="/" class="brand-link">
-          <div class="brand-logo">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
-              <line x1="3" y1="6" x2="21" y2="6"/>
-              <path d="M16 10a4 4 0 01-8 0"/>
-            </svg>
-          </div>
-          <span class="brand-text">DagangYuk</span>
-        </RouterLink>
-      </div>
-
-      <div class="testimonial">
-        <div class="quote-icon">"</div>
-        <p class="quote-text">Sistem kasir paling intuitif yang pernah kami gunakan. Training kasir baru kini hanya butuh waktu 5 menit.</p>
-        <div class="author">
-          <div class="author-avatar">AM</div>
-          <div class="author-info">
-            <div class="author-name">Ahmad Maulana</div>
-            <div class="author-role">Pemilik Kopi Senja</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Abstract Pattern Overlay -->
-      <div class="pattern-overlay"></div>
-    </div>
-
-    <!-- Right Form Panel -->
-    <div class="split-right">
-      <div class="top-nav">
-        <RouterLink to="/" class="back-link">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="19" y1="12" x2="5" y2="12"></line>
-            <polyline points="12 19 5 12 12 5"></polyline>
-          </svg>
-          Kembali
-        </RouterLink>
-        <ThemeSwitcher />
-      </div>
-
-      <div class="form-container">
-        <div class="form-header form-stagger">
-          <h1 class="form-title">Masuk ke Akun</h1>
-          <p class="form-subtitle">Selamat datang kembali! Silakan masukkan detail Anda.</p>
-        </div>
-
-        <form @submit.prevent="handleLogin" novalidate class="login-form">
-          <Transition name="fade-slide">
-            <div v-if="errorMessage" class="error-alert form-stagger">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="8" x2="12" y2="12"></line>
-                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+  <div class="login-wrapper">
+    <div class="split-layout">
+      <!-- Left: Branding & Visuals -->
+      <div class="login-left">
+        <div class="left-overlay"></div>
+        <div class="left-content">
+          <RouterLink to="/" class="brand slide-up" style="--delay: 0.1s">
+            <div class="brand-icon">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+                <line x1="3" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="2"/>
               </svg>
-              {{ errorMessage }}
             </div>
-          </Transition>
+            <h1 class="brand-name">DagangYuk</h1>
+          </RouterLink>
 
-          <div class="input-group form-stagger">
-            <label for="email">Email</label>
-            <input
-              id="email"
-              v-model="email"
-              type="email"
-              placeholder="nama@perusahaan.com"
-              autocomplete="email"
-              :disabled="isLoading"
-              class="form-input"
-            />
+          <div class="hero-text slide-up" style="--delay: 0.2s">
+            <h2>Kelola Bisnis Anda<br/>Lebih Cerdas & Efisien</h2>
+            <p>Sistem Point of Sale multi-tenant yang dirancang untuk mempercepat transaksi dan mempermudah analisis penjualan toko Anda.</p>
           </div>
 
-          <div class="input-group form-stagger">
-            <div class="label-row">
-              <label for="password">Password</label>
-              <a href="#" class="forgot-link">Lupa password?</a>
-            </div>
-            <div class="password-wrapper">
-              <input
-                id="password"
-                v-model="password"
-                :type="showPassword ? 'text' : 'password'"
-                placeholder="••••••••"
-                autocomplete="current-password"
-                :disabled="isLoading"
-                class="form-input"
-              />
-              <button
-                type="button"
-                class="btn-toggle-pw"
-                @click="showPassword = !showPassword"
-                title="Toggle password visibility"
-              >
-                <svg v-if="!showPassword" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                  <circle cx="12" cy="12" r="3"></circle>
-                </svg>
-                <svg v-else viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a2 2 0 1 1-2.83-2.83"></path>
-                  <line x1="1" y1="1" x2="23" y2="23"></line>
-                </svg>
-              </button>
-            </div>
+          <div class="feature-pills slide-up" style="--delay: 0.3s">
+            <div class="pill">✨ Multi-Tenant</div>
+            <div class="pill">⚡ Real-time Analytics</div>
+            <div class="pill">🔒 Keamanan Tinggi</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Login Form -->
+      <div class="login-right">
+        <div class="right-topbar">
+          <RouterLink to="/" class="back-link">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+            Kembali
+          </RouterLink>
+          <ThemeSwitcher />
+        </div>
+
+        <div class="form-container">
+          <div class="form-header slide-up" style="--delay: 0.1s">
+            <h2>Masuk ke Akun</h2>
+            <p>Selamat datang kembali! Silakan masukkan detail Anda.</p>
           </div>
 
-          <button type="submit" class="btn-submit form-stagger" :disabled="isLoading">
-            <svg v-if="isLoading" class="spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="2" x2="12" y2="6"></line>
-              <line x1="12" y1="18" x2="12" y2="22"></line>
-              <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
-              <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
-              <line x1="2" y1="12" x2="6" y2="12"></line>
-              <line x1="18" y1="12" x2="22" y2="12"></line>
-              <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
-              <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
-            </svg>
-            <span v-else>Masuk</span>
-          </button>
-        </form>
+          <div v-if="errorMessage" class="alert alert-error slide-up" style="--delay: 0.2s">
+            {{ errorMessage }}
+          </div>
+          <div v-if="successMessage" class="alert alert-success slide-up" style="--delay: 0.2s">
+            {{ successMessage }}
+          </div>
 
-        <div class="form-footer form-stagger">
-          Tidak punya akun? <a href="#">Hubungi Admin</a>
+          <form @submit.prevent="handleLogin" class="login-form slide-up" style="--delay: 0.3s">
+            <div class="form-group">
+              <label for="email">Email</label>
+              <div class="input-box">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                <input id="email" v-model="email" type="email" placeholder="contoh@toko.com" :disabled="isLoading" required />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <div class="label-row">
+                <label for="password">Password</label>
+                <a href="#" class="forgot-link">Lupa Password?</a>
+              </div>
+              <div class="input-box">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <input id="password" v-model="password" :type="showPassword ? 'text' : 'password'" placeholder="••••••••" :disabled="isLoading" required />
+                <button type="button" class="btn-toggle" @click="togglePassword" :disabled="isLoading">
+                  <svg v-if="!showPassword" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a2 2 0 1 1-2.83-2.83"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <button type="submit" class="btn-primary" :disabled="isLoading">
+              <span v-if="isLoading" class="spinner"></span>
+              <span v-else>Masuk Sekarang</span>
+            </button>
+          </form>
+
+          <p class="form-footer slide-up" style="--delay: 0.4s">
+            Belum punya akun? <a href="#">Hubungi Admin</a>
+          </p>
         </div>
       </div>
     </div>
@@ -173,250 +135,216 @@ async function handleLogin() {
 </template>
 
 <style scoped>
-/* Base Variables & Reset */
-.auth-layout {
-  display: flex;
+/* Reset & Base */
+.login-wrapper {
   min-height: 100vh;
-  background-color: var(--surface, #f9fafb);
-  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--surface);
+  display: flex;
+  font-family: var(--font-sans);
 }
 
-/* ── Left Split (Visual) ── */
-.split-left {
+.split-layout {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* ── LEFT PANEL ── */
+.login-left {
   flex: 1;
-  background: linear-gradient(135deg, var(--ink, #111827) 0%, #1e293b 100%);
+  position: relative;
+  background: #0f172a;
+  background-image: url('https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&q=80&w=1920');
+  background-size: cover;
+  background-position: center;
   color: white;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  padding: 48px;
-  position: relative;
+  padding: 60px;
   overflow: hidden;
 }
 
-.brand-link {
+.left-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 58, 138, 0.85) 100%);
+  z-index: 1;
+}
+
+.left-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.brand {
   display: inline-flex;
   align-items: center;
   gap: 12px;
   text-decoration: none;
   color: white;
-  position: relative;
-  z-index: 10;
+  margin-bottom: auto;
 }
-.brand-logo {
-  width: 36px; height: 36px;
-  background: var(--accent, #2563eb);
-  border-radius: 8px;
+.brand-icon {
+  width: 42px; height: 42px;
+  background: var(--accent);
+  border-radius: 12px;
   display: flex; align-items: center; justify-content: center;
 }
-.brand-logo svg { width: 20px; height: 20px; }
-.brand-text { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+.brand-icon svg { width: 24px; height: 24px; color: white; }
+.brand-name { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
 
-.testimonial {
-  position: relative;
-  z-index: 10;
+.hero-text { margin-bottom: 40px; }
+.hero-text h2 {
+  font-size: 42px;
+  font-weight: 800;
+  line-height: 1.15;
+  margin-bottom: 20px;
+  letter-spacing: -1px;
+}
+.hero-text p {
+  font-size: 16px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.8);
   max-width: 480px;
 }
-.quote-icon {
-  font-family: serif;
-  font-size: 80px;
-  line-height: 1;
-  color: rgba(255,255,255,0.2);
-  margin-bottom: -20px;
-}
-.quote-text {
-  font-size: 24px;
-  font-weight: 500;
-  line-height: 1.5;
-  margin-bottom: 32px;
-}
-.author {
+
+.feature-pills {
   display: flex;
-  align-items: center;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
 }
-.author-avatar {
-  width: 48px; height: 48px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.1);
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 600; font-size: 16px;
-  border: 1px solid rgba(255,255,255,0.2);
-}
-.author-name { font-weight: 600; font-size: 16px; }
-.author-role { font-size: 14px; color: rgba(255,255,255,0.6); }
-
-.pattern-overlay {
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background-image: radial-gradient(rgba(255,255,255,0.1) 1px, transparent 1px);
-  background-size: 32px 32px;
-  opacity: 0.5;
-  mask-image: linear-gradient(to bottom right, black, transparent);
-  -webkit-mask-image: linear-gradient(to bottom right, black, transparent);
+.pill {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 8px 16px;
+  border-radius: 99px;
+  font-size: 14px;
+  font-weight: 600;
+  backdrop-filter: blur(10px);
 }
 
-/* ── Right Split (Form) ── */
-.split-right {
+/* ── RIGHT PANEL ── */
+.login-right {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: var(--white, #ffffff);
+  background: var(--surface);
   position: relative;
+  max-width: 650px;
+  width: 100%;
 }
 
-.top-nav {
+.right-topbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 24px 48px;
+  padding: 30px 40px;
 }
 .back-link {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-size: 14px;
-  font-weight: 500;
-  color: var(--muted, #6b7280);
+  font-weight: 600;
+  color: var(--muted);
   text-decoration: none;
   transition: color 0.2s;
 }
-.back-link:hover { color: var(--ink, #111827); }
+.back-link:hover { color: var(--ink); }
 
 .form-container {
-  max-width: 420px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 80px;
+  max-width: 520px;
+  margin: 0 auto;
   width: 100%;
-  margin: auto;
-  padding: 0 32px;
+  padding-bottom: 80px;
 }
 
-.form-header { margin-bottom: 40px; }
-.form-title {
-  font-size: 32px;
-  font-weight: 800;
-  letter-spacing: -1px;
-  color: var(--ink);
-  margin-bottom: 8px;
-}
-.form-subtitle {
-  font-size: 15px;
-  color: var(--muted);
-}
+.form-header { margin-bottom: 32px; }
+.form-header h2 { font-size: 32px; font-weight: 800; color: var(--ink); margin-bottom: 8px; letter-spacing: -0.5px; }
+.form-header p { font-size: 15px; color: var(--muted); }
 
-.login-form {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
+.alert { padding: 14px 18px; border-radius: 10px; font-size: 14px; font-weight: 600; margin-bottom: 24px; }
+.alert-error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+.alert-success { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
 
-.error-alert {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #dc2626;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-}
+.login-form { display: flex; flex-direction: column; gap: 20px; }
+.form-group { display: flex; flex-direction: column; gap: 8px; }
+.form-group label { font-size: 14px; font-weight: 600; color: var(--ink); }
 
-.input-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.input-group label {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.label-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.forgot-link {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--accent, #2563eb);
-  text-decoration: none;
-}
+.label-row { display: flex; justify-content: space-between; align-items: center; }
+.forgot-link { font-size: 13px; font-weight: 600; color: var(--accent); text-decoration: none; }
 .forgot-link:hover { text-decoration: underline; }
 
-.form-input {
-  width: 100%;
-  height: 48px;
-  padding: 0 16px;
-  background: var(--white);
-  border: 1px solid var(--border, #e5e7eb);
-  border-radius: 10px;
-  font-size: 15px;
-  color: var(--ink);
-  outline: none;
-  transition: all 0.2s ease;
-  box-sizing: border-box;
-}
-.form-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 4px rgba(var(--accent-rgb, 37, 99, 235), 0.1);
-}
-.form-input::placeholder { color: #9ca3af; }
-.form-input:disabled { background: var(--surface); color: #9ca3af; cursor: not-allowed; }
-
-.password-wrapper {
+.input-box {
   position: relative;
   display: flex;
   align-items: center;
 }
-.password-wrapper .form-input { padding-right: 48px; }
-.btn-toggle-pw {
-  position: absolute;
-  right: 12px;
-  background: none; border: none;
-  color: #9ca3af;
-  cursor: pointer;
-  padding: 4px;
-  display: flex; align-items: center; justify-content: center;
-  transition: color 0.2s;
+.input-box .icon {
+  position: absolute; left: 16px;
+  width: 18px; height: 18px;
+  color: var(--muted);
+  pointer-events: none;
 }
-.btn-toggle-pw:hover { color: var(--ink); }
-
-.btn-submit {
+.input-box input {
   width: 100%;
+  height: 48px;
+  padding: 0 44px;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  font-size: 15px;
+  color: var(--ink);
+  background: var(--white);
+  transition: all 0.2s;
+  font-family: inherit;
+}
+.input-box input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); outline: none; }
+
+.btn-toggle {
+  position: absolute; right: 12px;
+  background: none; border: none;
+  color: var(--muted); cursor: pointer;
+  padding: 4px; display: flex; align-items: center;
+}
+.btn-toggle:hover { color: var(--ink); }
+.btn-toggle svg { width: 18px; height: 18px; }
+
+.btn-primary {
   height: 48px;
   background: var(--accent);
   color: white;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  margin-top: 8px;
+  margin-top: 10px;
+  transition: all 0.2s;
+  display: flex; justify-content: center; align-items: center;
 }
-.btn-submit:hover:not(:disabled) {
-  background: var(--accent-dark, #1d4ed8);
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-dark);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(var(--accent-rgb, 37, 99, 235), 0.2);
+  box-shadow: 0 4px 12px rgba(var(--accent-rgb, 59, 130, 246), 0.3);
 }
-.btn-submit:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
+.btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
 
 .spinner {
   width: 20px; height: 20px;
-  animation: spin 1s linear infinite;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
-@keyframes spin { 100% { transform: rotate(360deg); } }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .form-footer {
   margin-top: 32px;
@@ -424,21 +352,28 @@ async function handleLogin() {
   font-size: 14px;
   color: var(--muted);
 }
-.form-footer a {
-  color: var(--ink);
-  font-weight: 600;
-  text-decoration: none;
+.form-footer a { color: var(--ink); font-weight: 600; text-decoration: none; }
+.form-footer a:hover { color: var(--accent); text-decoration: underline; }
+
+/* ── ANIMATIONS ── */
+.slide-up {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: var(--delay, 0s);
 }
-.form-footer a:hover { text-decoration: underline; }
+@keyframes slideUpFade {
+  to { opacity: 1; transform: translateY(0); }
+}
 
-/* Transitions */
-.fade-slide-enter-active, .fade-slide-leave-active { transition: all 0.3s ease; }
-.fade-slide-enter-from, .fade-slide-leave-to { opacity: 0; transform: translateY(-10px); }
-
-/* Responsive */
+/* ── RESPONSIVE ── */
 @media (max-width: 992px) {
-  .split-left { display: none; }
-  .top-nav { padding: 24px; }
-  .form-container { padding: 0 24px; }
+  .login-left { display: none; }
+  .login-right { max-width: 100%; }
+}
+@media (max-width: 576px) {
+  .form-container { padding: 0 24px; padding-bottom: 40px; }
+  .right-topbar { padding: 20px 24px; }
+  .form-header h2 { font-size: 28px; }
 }
 </style>

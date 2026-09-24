@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'role' => \App\Http\Middleware\RequireRole::class,
+            'permission' => \App\Http\Middleware\RequirePermission::class,
             'check_tenant' => \App\Http\Middleware\CheckTenant::class,
         ]);
     })

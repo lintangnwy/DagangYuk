@@ -8,6 +8,13 @@ const auth   = useAuthStore()
 const route  = useRoute()
 const router = useRouter()
 
+interface NavItem {
+  label: string
+  icon: string
+  to: string
+  perm?: string | null
+}
+
 const props = withDefaults(defineProps<{
   fullHeight?: boolean
 }>(), {
@@ -17,43 +24,94 @@ const props = withDefaults(defineProps<{
 const sidebarOpen = ref(true)
 
 const navGroups = computed(() => {
-  const groups = [
-    {
-      label: 'Utama',
-      items: [
-        { label: 'Dashboard', icon: 'dashboard', to: '/dashboard' },
-      ],
-    }
-  ]
-  if (!auth.isSuperAdmin) {
-    groups.push(
+    const groups = [
       {
-        label: 'Transaksi',
+        label: 'Utama',
         items: [
-          { label: 'Kasir',           icon: 'pos',     to: '/pos' },
-          { label: 'Riwayat Pesanan', icon: 'history', to: '/orders' },
-          { label: 'Laporan Laba',    icon: 'chart',   to: '/reports' },
-        ],
-      },
-      {
-        label: 'Inventaris',
-        items: [
-          { label: 'Produk',    icon: 'box',      to: '/products' },
-          { label: 'Kategori',  icon: 'category', to: '/categories' },
-          { label: 'Stok & Adj.', icon: 'stock',    to: '/stock' },
+          { label: 'Dashboard', icon: 'dashboard', to: '/dashboard' } as NavItem,
         ],
       }
-    )
+    ]
+  if (!auth.isSuperAdmin) {
+    const canPos = auth.can('pos.access')
+    const canOrders = auth.can('shop.order.view')
+    const canReportProfit = auth.can('shop.report.profit')
+    const canReportShifts = auth.can('shop.report.shift')
+    const canProducts = auth.can('shop.product.view')
+    const canCategories = auth.can('shop.category.view')
+    const canStock = auth.can('shop.stock.view')
+
+    if (canPos || canOrders || canReportProfit || canReportShifts || canProducts || canCategories || canStock) {
+      const transaksiItems: NavItem[] = []
+      if (canPos) {
+        transaksiItems.push({ label: 'Kasir', icon: 'pos', to: '/pos' })
+      }
+      if (canOrders) {
+        transaksiItems.push({ label: 'Riwayat Pesanan', icon: 'history', to: '/orders' })
+      }
+      if (canReportProfit) {
+        transaksiItems.push({ label: 'Laporan Laba', icon: 'chart', to: '/reports' })
+      }
+      if (canReportShifts) {
+        transaksiItems.push({ label: 'Laporan Shift', icon: 'chart', to: '/reports/cash-shifts' })
+      }
+
+      const inventarisItems: NavItem[] = []
+      if (canProducts) {
+        inventarisItems.push({ label: 'Produk', icon: 'box', to: '/products' })
+      }
+      if (canCategories) {
+        inventarisItems.push({ label: 'Kategori', icon: 'category', to: '/categories' })
+      }
+      if (canStock) {
+        inventarisItems.push({ label: 'Stok & Adj.', icon: 'stock', to: '/stock' })
+        inventarisItems.push({ label: 'Gudang', icon: 'warehouse', to: '/warehouses' })
+      }
+
+      if (transaksiItems.length > 0) {
+        groups.push({
+          label: 'Transaksi',
+          items: transaksiItems,
+        })
+      }
+      if (inventarisItems.length > 0) {
+        groups.push({
+          label: 'Inventaris',
+          items: inventarisItems,
+        })
+      }
+    }
   }
 
   if (auth.isAdmin || auth.isSuperAdmin) {
+    const canPlatform = auth.can('platform.user.manage') || auth.can('staff.user.manage')
+    const canSettings = auth.can('shop.settings.view')
+    const canTenants = auth.can('platform.tenant.view')
+    const canActivityLogs = auth.can('platform.activity_log.view')
+    const canBranches = auth.can('shop.settings.view') && auth.isAdmin
+
+    const manajemenItems: NavItem[] = []
+    if (canTenants) {
+      manajemenItems.push({ label: 'Tenants', icon: 'users', to: '/tenants' })
+    }
+    if (canActivityLogs) {
+      manajemenItems.push({ label: 'Log Aktivitas', icon: 'history', to: '/activity-logs' })
+    }
+    if (canBranches) {
+      manajemenItems.push({ label: 'Cabang', icon: 'building', to: '/branches' })
+    }
+    if (canPlatform) {
+      manajemenItems.push({ label: 'Pengguna', icon: 'users', to: '/users' })
+    } else if (auth.can('staff.user.manage')) {
+      manajemenItems.push({ label: 'Pengguna', icon: 'users', to: '/users' })
+    }
+    if (canSettings) {
+      manajemenItems.push({ label: 'Pengaturan', icon: 'settings', to: '/settings' })
+    }
+
     groups.push({
       label: 'Manajemen',
-      items: [
-        ...(auth.isSuperAdmin ? [{ label: 'Tenants', icon: 'users', to: '/tenants' }] : []),
-        { label: 'Pengguna', icon: 'users', to: '/users' },
-        ...(auth.isAdmin ? [{ label: 'Pengaturan', icon: 'settings', to: '/settings' }] : []),
-      ],
+      items: manajemenItems,
     })
   }
 
@@ -105,7 +163,7 @@ function initial(name: string) {
             :key="item.to"
             :to="item.to"
             class="nav-item"
-            :class="{ active: route.path.startsWith(item.to) }"
+            :class="{ active: route.path === item.to || route.path.startsWith(`${item.to}/`) }"
           >
             <!-- Icons -->
             <span class="nav-icon">

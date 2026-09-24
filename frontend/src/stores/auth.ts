@@ -8,14 +8,13 @@ export interface AuthUser {
   email: string
   role?: string
   tenant_id?: number | null
+  permissions?: string[]
 }
 
-const API_BASE  = 'http://localhost:8000/api'
-const USER_KEY  = 'dagang_user'
 const TOKEN_KEY = 'dagang_token'
+const USER_KEY  = 'dagang_user'
 
 export const useAuthStore = defineStore('auth', () => {
-  // Cek key baru dulu, fallback ke key lama
   const savedToken = localStorage.getItem(TOKEN_KEY) ?? localStorage.getItem('token')
   const savedUser  = localStorage.getItem(USER_KEY)  ?? localStorage.getItem('user')
 
@@ -26,6 +25,21 @@ export const useAuthStore = defineStore('auth', () => {
     user.value?.role === 'admin' || user.value?.role === 'super_admin'
   )
   const isSuperAdmin = computed(() => user.value?.role === 'super_admin')
+
+  function can(permission: string): boolean {
+    if (!user.value?.permissions) return false
+    const perms = user.value.permissions
+    if (perms.includes(permission)) return true
+    for (const p of perms) {
+      if (p.endsWith('.*')) {
+        const prefix = p.slice(0, -2)
+        if (permission === prefix || permission.startsWith(prefix + '.')) {
+          return true
+        }
+      }
+    }
+    return false
+  }
 
   function setSession(t: string, u: AuthUser) {
     token.value = t
@@ -39,26 +53,41 @@ export const useAuthStore = defineStore('auth', () => {
     user.value  = null
     localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(USER_KEY)
-    // bersihkan key lama jika ada
     localStorage.removeItem('token')
     localStorage.removeItem('user')
   }
 
   async function login(email: string, password: string): Promise<void> {
     try {
-      const res = await api.post('/login', { email, password })
-      const data = res.data
+      console.log('Attempting login with:', email)
       
-      setSession(data.data.token, {
-        id:        data.data.user.id,
-        name:      data.data.user.name,
-        email:     data.data.user.email,
-        role:      data.data.user.role?.name ?? data.data.user.role_id,
-        tenant_id: data.data.user.tenant_id,
+      const res = await api.post('/login', { email, password })
+      
+      console.log('Login API response:', res.data)
+      
+      if (!res.data?.data?.user) {
+        throw new Error('User data tidak ditemukan di respons.')
+      }
+      
+      const uData = res.data.data.user
+      
+      const role = (uData.role?.name ?? uData.role_id) || 'kasir'
+      
+      setSession(res.data.data.token, {
+        id:          uData.id ?? 0,
+        name:        uData.name || 'Unknown',
+        email:       uData.email || '',
+        role:        role,
+        tenant_id:   uData.tenant_id || null,
+        permissions: uData.permissions ?? [],
       })
+      
+      console.log('User stored successfully:', user.value)
+      
     } catch (err: any) {
+      console.error('Login failed:', err.response?.data || err.message)
       throw new Error(
-        err.response?.data?.message || 'Login gagal.'
+        err.response?.data?.message || 'Login gagal. Coba lagi nanti.'
       )
     }
   }
@@ -78,11 +107,12 @@ export const useAuthStore = defineStore('auth', () => {
       const res = await api.get('/user')
       const data = res.data
       const u: AuthUser = {
-        id:        data.id,
-        name:      data.name,
-        email:     data.email,
-        role:      data.role?.name ?? data.role,
-        tenant_id: data.tenant_id,
+        id:          data.id,
+        name:        data.name,
+        email:       data.email,
+        role:        data.role?.name ?? data.role,
+        tenant_id:   data.tenant_id,
+        permissions: data.permissions ?? [],
       }
       user.value = u
       localStorage.setItem(USER_KEY, JSON.stringify(u))
@@ -93,10 +123,9 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isLoggedIn = () => !!token.value
 
-  // Auto-fetch user jika token ada tapi user belum di-load
   if (token.value && !user.value) {
     fetchUser()
   }
 
-  return { user, token, isAdmin, isSuperAdmin, login, logout, fetchUser, isLoggedIn, clearSession }
+  return { user, token, isAdmin, isSuperAdmin, can, login, logout, fetchUser, isLoggedIn, clearSession }
 })

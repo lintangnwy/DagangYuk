@@ -20,6 +20,7 @@ class Product extends Model
         'cost_price',
         'price',
         'stock',
+        'damaged_stock',
         'image',
     ];
 

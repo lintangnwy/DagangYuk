@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Tenant;
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 
 class TenantController extends Controller
@@ -22,6 +23,8 @@ class TenantController extends Controller
         ]);
 
         $tenant = Tenant::create($data);
+
+        ActivityLogger::log('TENANT_CREATE', "Menambahkan tenant baru: {$tenant->name} (ID: {$tenant->id})");
 
         return response()->json([
             'message' => 'Tenant berhasil ditambahkan',
@@ -49,6 +52,8 @@ class TenantController extends Controller
 
         $tenant->update($data);
 
+        ActivityLogger::log('TENANT_UPDATE', "Mengubah data tenant: {$tenant->name} (ID: {$tenant->id})");
+
         return response()->json([
             'message' => 'Tenant berhasil diubah',
             'data' => $tenant
@@ -57,7 +62,11 @@ class TenantController extends Controller
 
     public function destroy($id)
     {
-        Tenant::findOrFail($id)->delete();
+        $tenant = Tenant::findOrFail($id);
+        $name = $tenant->name;
+        $tenant->delete();
+
+        ActivityLogger::log('TENANT_DELETE', "Menghapus tenant: {$name} (ID: {$id})");
 
         return response()->json([
             'message' => 'Tenant berhasil dihapus'

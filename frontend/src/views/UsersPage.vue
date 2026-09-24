@@ -176,8 +176,8 @@ onMounted(() => store.fetchUsers())
                 <div class="form-group">
                   <label>Role <span class="req">*</span></label>
                   <select v-model="form.role_id" class="form-select">
-                    <option v-if="authStore.isSuperAdmin" :value="1">Super Admin</option>
-                    <option v-if="authStore.isSuperAdmin || authStore.isAdmin" :value="2">Admin</option>
+                    <option v-if="authStore.can('platform.user.manage')" :value="1">Super Admin</option>
+                    <option v-if="authStore.can('platform.user.manage') || authStore.can('staff.user.manage')" :value="2">Admin</option>
                     <option :value="3">Kasir</option>
                   </select>
                 </div>

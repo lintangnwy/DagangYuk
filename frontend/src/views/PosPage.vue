@@ -79,7 +79,7 @@ const shiftError     = ref('')
 
 // Modal pembayaran
 const showPayModal    = ref(false)
-const payMethod       = ref<'cash' | 'qris' | 'transfer'>('cash')
+const payMethod       = ref<string>('cash')
 const discountType    = ref<'nominal' | 'percent'>('nominal')
 const discountValue   = ref('0')
 const buyerName       = ref('')
@@ -233,14 +233,14 @@ async function confirmPay() {
   const snapDiscount = discountAmount.value
 
   try {
-    // QRIS & Transfer → pakai Midtrans Snap
-    if (payMethod.value === 'qris' || payMethod.value === 'transfer') {
+    // QRIS, Transfer, & VA → pakai Midtrans Snap
+    if (payMethod.value !== 'cash') {
       await processMidtrans(snapTotal, snapItems, snapMethod, snapDiscount)
       return
     }
 
     // Tunai → proses langsung
-    const result = await pos.checkout(payMethod.value, snapDiscount)
+    const result = await pos.checkout('cash', snapDiscount)
     showPayModal.value = false
     orderResult.value = {
       invoice_number: result.data?.invoice_number ?? '-',
@@ -267,7 +267,8 @@ async function processMidtrans(
 ) {
   try {
     // 1. Buat order di backend (status pending)
-    const orderRes = await pos.checkout(method as 'qris' | 'transfer', discount)
+    const backendMethod = method === 'qris' ? 'qris' : 'transfer'
+    const orderRes = await pos.checkout(backendMethod as 'qris' | 'transfer', discount)
     const invoiceNumber = orderRes.data?.invoice_number ?? `INV-${Date.now()}`
 
     // 2. Minta Snap token dari backend
@@ -276,12 +277,17 @@ async function processMidtrans(
       order_id: invoiceNumber,
       amount:   amount,
       customer: customerName.value || auth.user?.name,
+      payment_channel: method === 'transfer' ? undefined : method,
     })
 
     const { snap_token } = tokenRes.data
+    const snap = (window as Window & { snap?: { pay: (token: string, callbacks: Record<string, (result?: unknown) => void>) => void } }).snap
+    if (!snap) {
+      throw new Error('Midtrans Snap belum siap. Periksa koneksi internet dan konfigurasi client key.')
+    }
 
     // 3. Buka Midtrans Snap popup
-    ;(window as any).snap.pay(snap_token, {
+    snap.pay(snap_token, {
       onSuccess: () => {
         showPayModal.value = false
         isProcessing.value = false
@@ -328,7 +334,15 @@ function handleCurrencyInput(modelValue: string, updateFn: (val: string) => void
 function printReceipt() {
   if (!orderResult.value) return
   const o = orderResult.value
-  const payLabel: Record<string, string> = { cash: 'Tunai', qris: 'QRIS', transfer: 'Transfer' }
+  const payLabel: Record<string, string> = { 
+    cash: 'Tunai', 
+    qris: 'QRIS', 
+    transfer: 'Transfer',
+    bca_va: 'BCA VA',
+    mandiri_bill: 'Mandiri VA',
+    bni_va: 'BNI VA',
+    bri_va: 'BRI VA'
+  }
 
   const html = `
     <!DOCTYPE html>
@@ -570,7 +584,7 @@ function printReceipt() {
 
         <!-- Success banner -->
         <Transition name="success">
-          <div v-if="successMsg" class="success-msg">✓ {{ successMsg }}</div>
+          <div v-if="successMsg" class="success-msg">{{ successMsg }}</div>
         </Transition>
 
       </aside>
@@ -582,7 +596,7 @@ function printReceipt() {
         <div v-if="showShiftModal" class="modal-overlay" @click.self="showShiftModal = false">
           <div class="modal-box">
             <div class="modal-hd">
-              <h2>{{ shiftModalMode === 'open' ? '🔓 Buka Shift Kasir' : '🔒 Tutup Shift Kasir' }}</h2>
+              <h2>{{ shiftModalMode === 'open' ? 'Buka Shift Kasir' : 'Tutup Shift Kasir' }}</h2>
               <button class="modal-x" @click="showShiftModal = false">✕</button>
             </div>
             <div class="modal-bd">
@@ -666,13 +680,25 @@ function printReceipt() {
               <p class="pay-label">METODE PEMBAYARAN</p>
               <div class="pay-methods">
                 <button :class="{ active: payMethod === 'cash' }" @click="payMethod = 'cash'">
-                  <span>💵</span> Tunai
+                  <span class="pay-method-mark">Rp</span> Tunai
+                </button>
+                <button :class="{ active: payMethod === 'bca_va' }" @click="payMethod = 'bca_va'">
+                  <span>⇄</span> BCA VA
+                </button>
+                <button :class="{ active: payMethod === 'mandiri_bill' }" @click="payMethod = 'mandiri_bill'">
+                  <span>⇄</span> Mandiri VA
+                </button>
+                <button :class="{ active: payMethod === 'bni_va' }" @click="payMethod = 'bni_va'">
+                  <span>⇄</span> BNI VA
+                </button>
+                <button :class="{ active: payMethod === 'bri_va' }" @click="payMethod = 'bri_va'">
+                  <span>⇄</span> BRI VA
                 </button>
                 <button :class="{ active: payMethod === 'transfer' }" @click="payMethod = 'transfer'">
-                  <span>⇄</span> Transfer
+                  <span>⇄</span> Transfer Lain
                 </button>
                 <button :class="{ active: payMethod === 'qris' }" @click="payMethod = 'qris'">
-                  <span>📱</span> QRIS
+                  <span class="pay-method-mark">QR</span> QRIS
                 </button>
               </div>
             </div>
@@ -1497,10 +1523,11 @@ function printReceipt() {
 }
 
 .pay-methods {
-  display: flex; gap: 8px;
+  display: flex; flex-wrap: wrap; gap: 8px;
 }
 .pay-methods button {
-  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+  flex: 1 1 calc(33.333% - 8px);
+  min-width: 110px; display: flex; align-items: center; justify-content: center; gap: 6px;
   padding: 10px 8px; border: 2px solid var(--border); border-radius: 10px;
   cursor: pointer; background: var(--surface); font-size: 13.5px;
   font-weight: 600; color: var(--muted); transition: all 0.15s;

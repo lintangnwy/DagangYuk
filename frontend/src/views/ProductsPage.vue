@@ -12,7 +12,7 @@ const IMG  = 'http://localhost:8000/storage'
 interface Category { id: number; name: string }
 interface Product  {
   id: number; name: string; sku: string | null
-  price: number; cost_price: number; stock: number
+  price: number; cost_price: number; stock: number;
   image: string | null; category_id: number | null
   category?: Category
 }
