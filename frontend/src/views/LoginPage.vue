@@ -65,9 +65,9 @@ function togglePassword() {
           </div>
 
           <div class="feature-pills slide-up" style="--delay: 0.3s">
-            <div class="pill">✨ Multi-Tenant</div>
-            <div class="pill">⚡ Real-time Analytics</div>
-            <div class="pill">🔒 Keamanan Tinggi</div>
+            <div class="pill"> Multi-Tenant</div>
+            <div class="pill"> Real-time Analytics</div>
+            <div class="pill"> Keamanan Tinggi</div>
           </div>
         </div>
       </div>
