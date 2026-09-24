@@ -18,17 +18,30 @@ class ProductController extends Controller
         return response()->json($products);
     }
 
-    public function store(Request $request): JsonResponse
+    private function validateProduct(Request $request): array
     {
-        $validated = $request->validate([
+        return $request->validate([
             'category_id' => 'nullable|exists:categories,id',
             'name'        => 'required|string|max:255',
             'sku'         => 'nullable|string|max:100',
-            'cost_price'  => 'nullable|numeric|min:0',
-            'price'       => 'required|numeric|min:0',
-            'stock'       => 'nullable|integer|min:0',
+            'cost_price'  => 'nullable|numeric|min:0|max:9999999999999',
+            'price'       => 'required|numeric|min:0|max:9999999999999',
+            'stock'       => 'nullable|integer|min:0|max:999999999',
             'image'       => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+        ], [
+            'price.required' => 'Harga jual wajib diisi.',
+            'price.max'      => 'Harga jual tidak boleh melebihi batas maksimal.',
+            'cost_price.max' => 'Harga beli tidak boleh melebihi batas maksimal.',
+            'stock.max'      => 'Jumlah stok tidak boleh melebihi 999.999.999.',
+            'image.image'    => 'File harus berupa gambar.',
+            'image.mimes'    => 'Format gambar harus jpeg, png, jpg, atau webp.',
+            'image.max'      => 'Ukuran gambar maksimal 2 MB.',
         ]);
+    }
+
+    public function store(Request $request): JsonResponse
+    {
+        $validated = $this->validateProduct($request);
 
         $validated['tenant_id'] = $request->user()->tenant_id;
 
@@ -57,15 +70,7 @@ class ProductController extends Controller
     {
         $product = Product::findOrFail($id);
 
-        $validated = $request->validate([
-            'category_id' => 'nullable|exists:categories,id',
-            'name'        => 'required|string|max:255',
-            'sku'         => 'nullable|string|max:100',
-            'cost_price'  => 'nullable|numeric|min:0',
-            'price'       => 'required|numeric|min:0',
-            'stock'       => 'nullable|integer|min:0',
-            'image'       => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
-        ]);
+        $validated = $this->validateProduct($request);
 
         if ($request->hasFile('image')) {
             // Hapus foto lama

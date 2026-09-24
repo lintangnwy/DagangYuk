@@ -12,7 +12,7 @@ const IMG  = 'http://localhost:8000/storage'
 interface Category { id: number; name: string }
 interface Product  {
   id: number; name: string; sku: string | null
-  price: number; cost_price: number; stock: number;
+  price: number; cost_price?: number | null; stock: number;
   image: string | null; category_id: number | null
   category?: Category
 }
@@ -71,7 +71,7 @@ function openCreateProd() {
 function openEditProd(p: Product) {
   editProd.value = p; imageFile.value = null
   imagePreview.value = p.image ? `${IMG}/${p.image}` : null
-  prodForm.value = { name: p.name, sku: p.sku ?? '', price: String(p.price), cost_price: String(p.cost_price), stock: String(p.stock), category_id: p.category_id ?? '' }
+  prodForm.value = { name: p.name, sku: p.sku ?? '', price: String(p.price), cost_price: String(p.cost_price ?? ''), stock: String(p.stock), category_id: p.category_id ?? '' }
   showProdModal.value = true
 }
 
@@ -81,7 +81,10 @@ function onImageChange(e: Event) {
 }
 
 async function saveProd() {
-  if (!prodForm.value.name || !prodForm.value.price) return
+  if (!prodForm.value.name.trim() || !prodForm.value.price) {
+    error.value = 'Nama produk dan harga jual wajib diisi.'
+    return
+  }
   saving.value = true; error.value = ''
   try {
     const fd = new FormData()
@@ -98,7 +101,13 @@ async function saveProd() {
       await api.post('/products', fd)
     }
     showProdModal.value = false; await loadProducts()
-  } catch (e: any) { error.value = e.response?.data?.message ?? 'Gagal menyimpan.' }
+  } catch (e: any) {
+    const validationErrors = e.response?.data?.errors
+    const firstValidationError = validationErrors
+      ? Object.values(validationErrors).flat()[0]
+      : null
+    error.value = String(firstValidationError ?? e.response?.data?.message ?? e.message ?? 'Gagal menyimpan produk.')
+  }
   finally { saving.value = false }
 }
 
@@ -156,7 +165,10 @@ async function doDelCat() {
   showDelCat.value = false; delCatTarget.value = null
 }
 
-function fmt(n: number) { return 'Rp\u00A0' + n.toLocaleString('id-ID') }
+function fmt(n: number | null | undefined) {
+  if (n == null || isNaN(Number(n))) return '—'
+  return 'Rp\u00A0' + Number(n).toLocaleString('id-ID')
+}
 
 onMounted(async () => { 
   const filterParam = route.query.filter as string
@@ -193,7 +205,7 @@ onMounted(async () => {
             Kategori <span class="pill-count">{{ categories.length }}</span>
           </button>
         </div>
-        <button class="btn-primary" @click="activeTab === 'products' ? openCreateProd() : openCreateCat()">
+        <button v-if="activeTab === 'products' ? auth.can('shop.product.manage') : auth.can('shop.category.manage')" class="btn-primary" @click="activeTab === 'products' ? openCreateProd() : openCreateCat()">
           + Tambah {{ activeTab === 'products' ? 'Produk' : 'Kategori' }}
         </button>
       </div>
@@ -230,7 +242,7 @@ onMounted(async () => {
           {{ prodSearch ? 'Produk tidak ditemukan.' : 'Belum ada produk. Klik "+ Tambah Produk".' }}
         </div>
         <table v-else>
-          <thead><tr><th>Produk</th><th>Kategori</th><th>Harga Jual</th><th>Harga Beli</th><th>Stok</th><th>Aksi</th></tr></thead>
+          <thead><tr><th>Produk</th><th>Kategori</th><th>Harga Jual</th><th v-if="auth.can('shop.cost.view')">Harga Beli</th><th>Stok</th><th v-if="auth.can('shop.product.manage')">Aksi</th></tr></thead>
           <tbody>
             <tr v-for="p in filteredProducts" :key="p.id">
               <td>
@@ -243,9 +255,9 @@ onMounted(async () => {
               </td>
               <td><span class="cat-b">{{ p.category?.name ?? '—' }}</span></td>
               <td class="fw">{{ fmt(p.price) }}</td>
-              <td class="muted">{{ fmt(p.cost_price) }}</td>
+              <td v-if="auth.can('shop.cost.view')" class="muted">{{ fmt(p.cost_price) }}</td>
               <td><span class="stock-b" :class="p.stock > 0 ? 'ok' : 'out'">{{ p.stock }} pcs</span></td>
-              <td>
+              <td v-if="auth.can('shop.product.manage')">
                 <div class="row-act">
                   <button class="btn-edit" @click="openEditProd(p)">Edit</button>
                   <button class="btn-del"  @click="confirmDelProd(p)">Hapus</button>
@@ -275,7 +287,7 @@ onMounted(async () => {
           {{ catSearch ? 'Tidak ditemukan.' : 'Belum ada kategori. Klik "+ Tambah Kategori".' }}
         </div>
         <table v-else>
-          <thead><tr><th>Nama Kategori</th><th>Jumlah Produk</th><th>Aksi</th></tr></thead>
+          <thead><tr><th>Nama Kategori</th><th>Jumlah Produk</th><th v-if="auth.can('shop.category.manage')">Aksi</th></tr></thead>
           <tbody>
             <tr v-for="c in filteredCats" :key="c.id">
               <td>
@@ -285,7 +297,7 @@ onMounted(async () => {
                 </div>
               </td>
               <td class="muted">{{ products.filter(p => p.category_id === c.id).length }} produk</td>
-              <td>
+              <td v-if="auth.can('shop.category.manage')">
                 <div class="row-act">
                   <button class="btn-edit" @click="openEditCat(c)">Edit</button>
                   <button class="btn-del"  @click="confirmDelCat(c)">Hapus</button>

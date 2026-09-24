@@ -3,14 +3,17 @@ import axios from 'axios'
 const api = axios.create({
   baseURL: '/api',
   headers: {
-    'Accept': 'application/json',
-    'Content-Type': 'application/json'
+    'Accept': 'application/json'
   }
 })
 
-// Request interceptor to add auth token if it exists (for non-sanctum SPA auth, but with sanctum cookie it might still need it if using token)
+// Request interceptor to add auth token if it exists
 api.interceptors.request.use(config => {
-  const token = localStorage.getItem('dagang_token')
+  if (config.data instanceof FormData) {
+    delete config.headers['Content-Type']
+  }
+
+  const token = localStorage.getItem('dagang_token') || localStorage.getItem('token')
   
   // Don't send token for public endpoints
   const publicEndpoints = ['/login', '/midtrans/webhook']
