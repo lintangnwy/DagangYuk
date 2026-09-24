@@ -132,6 +132,14 @@ DagangYuk/
 | Theme switcher (4 warna) | ✅ |
 | Sidebar navigation | ✅ |
 | Role-based access (admin/kasir) | ✅ |
+| Halaman Riwayat Pesanan | ✅ |
+| Stock Adjustment UI | ✅ |
+| Settings Toko (logo, nama, alamat struk) | ✅ |
+| Laporan Laba/Profit | ✅ |
+| Manajemen Pengguna/Staff UI | ✅ |
+| Low Stock Alert di Dashboard | ✅ |
+| Barcode/SKU scanner | ✅ |
+| Export laporan ke Excel/PDF | ✅ |
 
 ---
 
@@ -139,14 +147,7 @@ DagangYuk/
 
 | Fitur | Prioritas |
 |-------|-----------|
-| Halaman Riwayat Pesanan | 🔴 Tinggi |
-| Stock Adjustment UI | 🔴 Tinggi |
-| Settings Toko (logo, nama, alamat struk) | 🟡 Sedang |
-| Laporan Laba/Profit | 🟡 Sedang |
-| Manajemen Pengguna/Staff UI | 🟡 Sedang |
-| Low Stock Alert di Dashboard | 🟡 Sedang |
-| Barcode/SKU scanner | 🟢 Rendah |
-| Export laporan ke Excel/PDF | 🟢 Rendah |
+| - | - |
 
 ---
 
@@ -177,6 +178,7 @@ cd frontend && npm run dev
 |-------|----------|------|
 | superadmin@test.com | password123 | Super Admin |
 | admin@test.com | password123 | Admin |
+
 | kasir@test.com | password123 | Kasir |
 
 

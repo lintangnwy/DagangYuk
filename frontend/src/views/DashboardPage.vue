@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import AppLayout from '@/components/AppLayout.vue'
@@ -16,8 +16,9 @@ interface RecentOrder {
   user?: { id: number; name: string }
 }
 interface DashData {
+  period:       { range: string; start_date: string; end_date: string; label: string }
+  current:      { revenue: number; profit: number; orders: number }
   today:        { revenue: number; profit: number; orders: number }
-  this_month:   { revenue: number; profit: number; orders: number }
   products:     { total: number; low_stock: number; out: number; low_stock_items: {id: number, name: string, stock: number, sku: string}[] }
   chart:        ChartDay[]
   top_products: TopProduct[]
@@ -28,11 +29,33 @@ interface DashData {
 const data    = ref<DashData | null>(null)
 const loading = ref(true)
 const error   = ref('')
+const rangeType = ref<'today' | 'this_week' | 'this_month' | 'last_month' | 'custom'>('this_week')
+const customStartDate = ref('')
+const customEndDate = ref('')
+const showCustomRange = ref(false)
+const rangeLabelMap: Record<string, string> = {
+  'today': 'Hari Ini',
+  'this_week': 'Minggu Ini',
+  'this_month': 'Bulan Ini',
+  'last_month': 'Bulan Lalu'
+}
+
+// Set default custom dates to last 7 days
+function initCustomDates() {
+  const end = new Date()
+  const start = new Date(end.getTime() - 6 * 24 * 60 * 60 * 1000)
+  customStartDate.value = start.toISOString().split('T')[0]
+  customEndDate.value = end.toISOString().split('T')[0]
+}
 
 async function load() {
   loading.value = true; error.value = ''
   try {
-    const res = await fetch(`${API}/dashboard`, {
+    let url = `${API}/dashboard?range=${rangeType.value}`
+    if (rangeType.value === 'custom') {
+      url += `&start_date=${customStartDate.value}&end_date=${customEndDate.value}`
+    }
+    const res = await fetch(url, {
       headers: { Authorization: `Bearer ${auth.token}`, Accept: 'application/json' },
     })
     if (!res.ok) throw new Error('Gagal memuat data.')
@@ -41,6 +64,26 @@ async function load() {
     error.value = e instanceof Error ? e.message : 'Error.'
   } finally { loading.value = false }
 }
+
+function setRange(type: 'today' | 'this_week' | 'this_month' | 'last_month') {
+  rangeType.value = type
+  showCustomRange.value = false
+  load()
+}
+
+function toggleCustomRange() {
+  showCustomRange.value = !showCustomRange.value
+}
+
+function applyCustomRange() {
+  rangeType.value = 'custom'
+  load()
+}
+
+function navigateToLowStock() {
+  router.push({ path: '/products', query: { filter: 'low_stock' } })
+}
+
 
 function barMax() {
   if (!data.value?.chart.length) return 1
@@ -61,7 +104,31 @@ function payLabel(m: string) {
   return ({ cash: 'Tunai', qris: 'QRIS', transfer: 'Transfer' } as Record<string, string>)[m] ?? m
 }
 
-onMounted(async () => { await auth.fetchUser(); load() })
+// Tooltip state for chart
+const tooltipState = ref<{ visible: boolean; x: number; y: number; revenue: number; label: string }>({
+  visible: false, x: 0, y: 0, revenue: 0, label: ''
+})
+
+function showTooltip(event: MouseEvent, revenue: number, label: string) {
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  tooltipState.value = {
+    visible: true,
+    x: rect.left + rect.width / 2,
+    y: rect.top - 10,
+    revenue,
+    label
+  }
+}
+
+function hideTooltip() {
+  tooltipState.value.visible = false
+}
+
+onMounted(async () => { 
+  initCustomDates()
+  await auth.fetchUser()
+  load() 
+})
 </script>
 
 <template>
@@ -77,6 +144,50 @@ onMounted(async () => { await auth.fetchUser(); load() })
         </p>
       </div>
       <div class="head-btns">
+        <!-- Date Range Picker -->
+        <div class="date-range-selector">
+          <button 
+            class="btn-range" 
+            :class="{ active: rangeType === 'today' }"
+            @click="setRange('today')">
+            Hari Ini
+          </button>
+          <button 
+            class="btn-range" 
+            :class="{ active: rangeType === 'this_week' }"
+            @click="setRange('this_week')">
+            Minggu Ini
+          </button>
+          <button 
+            class="btn-range" 
+            :class="{ active: rangeType === 'this_month' }"
+            @click="setRange('this_month')">
+            Bulan Ini
+          </button>
+          <button 
+            class="btn-range" 
+            :class="{ active: rangeType === 'last_month' }"
+            @click="setRange('last_month')">
+            Bulan Lalu
+          </button>
+          <button 
+            class="btn-range custom" 
+            :class="{ active: showCustomRange }"
+            @click="toggleCustomRange">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Custom Range Inputs -->
+        <div v-if="showCustomRange" class="custom-range-inputs">
+          <input type="date" v-model="customStartDate" class="date-input" />
+          <span>-</span>
+          <input type="date" v-model="customEndDate" class="date-input" />
+          <button class="btn-primary-sm" @click="applyCustomRange">Terapkan</button>
+        </div>
+
         <button class="btn-outline" @click="load" :disabled="loading">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
@@ -109,9 +220,9 @@ onMounted(async () => { await auth.fetchUser(); load() })
             </svg>
           </div>
           <div>
-            <p class="scard-label">Pendapatan Hari Ini</p>
-            <p class="scard-value">{{ fmtFull(data.today.revenue) }}</p>
-            <p class="scard-sub">{{ data.today.orders }} transaksi</p>
+            <p class="scard-label">{{ data.period.label }}</p>
+            <p class="scard-value">{{ fmtFull(data.current.revenue) }}</p>
+            <p class="scard-sub">{{ data.current.orders }} transaksi</p>
           </div>
         </div>
 
@@ -123,8 +234,8 @@ onMounted(async () => { await auth.fetchUser(); load() })
             </svg>
           </div>
           <div>
-            <p class="scard-label">Laba Kotor (Bulan Ini)</p>
-            <p class="scard-value">{{ fmtFull(data.this_month.profit) }}</p>
+            <p class="scard-label">Laba ({{ data.period.label }})</p>
+            <p class="scard-value">{{ fmtFull(data.current.profit) }}</p>
             <p class="scard-sub">{{ fmtFull(data.today.profit) }} hari ini</p>
           </div>
         </div>
@@ -137,9 +248,9 @@ onMounted(async () => { await auth.fetchUser(); load() })
             </svg>
           </div>
           <div>
-            <p class="scard-label">Bulan Ini</p>
-            <p class="scard-value">{{ fmtFull(data.this_month.revenue) }}</p>
-            <p class="scard-sub">{{ data.this_month.orders }} transaksi</p>
+            <p class="scard-label">Hari Ini</p>
+            <p class="scard-value">{{ fmtFull(data.today.revenue) }}</p>
+            <p class="scard-sub">{{ data.today.orders }} transaksi</p>
           </div>
         </div>
 
@@ -174,7 +285,10 @@ onMounted(async () => { await auth.fetchUser(); load() })
           </div>
         </template>
 
-        <div class="scard" :class="data.products.low_stock > 0 ? 'warn' : ''">
+        <div class="scard" :class="data.products.low_stock > 0 ? 'warn clickable' : ''" 
+          @click="data.products.low_stock > 0 && navigateToLowStock()"
+          role="button"
+          :tabindex="data.products.low_stock > 0 ? 0 : -1">
           <div class="scard-icon" :class="data.products.low_stock > 0 ? 'warn-i' : 'muted'">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
@@ -184,7 +298,7 @@ onMounted(async () => { await auth.fetchUser(); load() })
           <div>
             <p class="scard-label">Stok Menipis</p>
             <p class="scard-value">{{ data.products.low_stock }}</p>
-            <p class="scard-sub">produk stok &lt; 5</p>
+            <p class="scard-sub">produk stok &lt; 5 {{ data.products.low_stock > 0 ? '→' : '' }}</p>
           </div>
         </div>
       </div>
@@ -192,16 +306,29 @@ onMounted(async () => { await auth.fetchUser(); load() })
       <!-- Chart + Top -->
       <div class="mid-grid">
         <div class="card">
-          <div class="card-head"><h3>Penjualan 7 Hari Terakhir</h3></div>
+          <div class="card-head"><h3>Penjualan ({{ data.period.label }})</h3></div>
           <div class="chart-area">
+            <div class="chart-y-axis">
+              <span class="y-label">{{ fmt(barMax()) }}</span>
+              <span class="y-label mid">{{ fmt(barMax() / 2) }}</span>
+              <span class="y-label">Rp 0</span>
+            </div>
             <div class="bars">
               <div v-for="d in data.chart" :key="d.date" class="bar-col"
-                :title="`${d.label}: ${fmtFull(d.revenue)}`">
+                @mouseenter="showTooltip($event, d.revenue, d.label)"
+                @mouseleave="hideTooltip">
                 <span class="bval">{{ d.revenue > 0 ? fmt(d.revenue) : '' }}</span>
-                <div class="btrack"><div class="bfill" :style="`height:${barH(d.revenue)}%`"></div></div>
+                <div class="btrack" :title="`${d.label}: ${fmtFull(d.revenue)}`">
+                  <div class="bfill" :style="`height:${barH(d.revenue)}%`"></div>
+                </div>
                 <span class="blabel">{{ d.label }}</span>
               </div>
             </div>
+          </div>
+          <!-- Tooltip -->
+          <div v-if="tooltipState.visible" class="tooltip" :style="{ left: tooltipState.x + 'px', top: tooltipState.y + 'px' }">
+            <p class="tooltip-label">{{ tooltipState.label }}</p>
+            <p class="tooltip-value">{{ fmtFull(tooltipState.revenue) }}</p>
           </div>
         </div>
 
@@ -276,7 +403,94 @@ onMounted(async () => { await auth.fetchUser(); load() })
 .dash-head p  { font-size: 13px; color: var(--muted); margin-top: 3px; }
 .dash-head strong { color: var(--ink); }
 
-.head-btns { display: flex; gap: 10px; align-items: center; }
+.head-btns { 
+  display: flex; 
+  gap: 10px; 
+  align-items: center; 
+  flex-wrap: wrap;
+}
+
+/* Date Range Selector */
+.date-range-selector {
+  display: flex;
+  gap: 6px;
+  background: var(--white);
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.btn-range {
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-range:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.btn-range.active {
+  background: var(--accent-bg);
+  color: var(--accent);
+  border: 1px solid var(--accent-ring);
+}
+
+.btn-range.custom {
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Custom Range Inputs */
+.custom-range-inputs {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: var(--white);
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-right: 8px;
+}
+
+.date-input {
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+}
+
+.date-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-bg);
+}
+
+.btn-primary-sm {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-primary-sm:hover {
+  background: var(--accent-dark);
+}
 
 .btn-primary {
   background: var(--accent); color: #fff; border: none;
@@ -318,9 +532,18 @@ onMounted(async () => { await auth.fetchUser(); load() })
   background: var(--white); border: 1px solid var(--border);
   border-radius: 12px; padding: 18px 20px;
   display: flex; gap: 14px; align-items: flex-start;
-  transition: box-shadow .15s;
+  transition: box-shadow .15s, border-color .15s;
 }
 .scard:hover { box-shadow: 0 4px 16px rgba(0,0,0,.06); }
+
+.scard.clickable {
+  cursor: pointer;
+}
+
+.scard.clickable:hover {
+  border-color: var(--accent);
+}
+
 .scard.accent { border-color: var(--accent-ring); background: var(--accent-bg); }
 .scard.green  { border-color: #bbf7d0; background: #f0fdf4; }
 .scard.warn   { border-color: #fde68a; background: #fffbeb; }
@@ -345,6 +568,7 @@ onMounted(async () => { await auth.fetchUser(); load() })
 .card {
   background: var(--white); border: 1px solid var(--border);
   border-radius: 12px; overflow: hidden; margin-bottom: 0;
+  position: relative;
 }
 
 .card-head {
@@ -362,13 +586,129 @@ onMounted(async () => { await auth.fetchUser(); load() })
 .side-col { display: flex; flex-direction: column; gap: 14px; }
 
 /* Chart */
-.chart-area { padding: 16px 20px 8px; height: 200px; display: flex; align-items: flex-end; }
-.bars { display: flex; align-items: flex-end; gap: 8px; width: 100%; height: 100%; }
-.bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; height: 100%; cursor: default; }
-.bval   { font-size: 10px; color: var(--muted); white-space: nowrap; min-height: 14px; }
-.btrack { flex: 1; width: 100%; background: var(--surface); border-radius: 6px; display: flex; align-items: flex-end; overflow: hidden; }
-.bfill  { width: 100%; background: var(--accent); border-radius: 6px 6px 0 0; transition: height .5s cubic-bezier(.34,1.56,.64,1); opacity: .85; }
-.blabel { font-size: 11px; color: var(--muted); font-weight: 500; }
+.chart-area { 
+  padding: 16px 20px 8px; 
+  height: 220px; 
+  display: flex; 
+  align-items: flex-end; 
+  gap: 12px;
+  position: relative;
+}
+
+.chart-y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  height: 100%;
+  min-width: 60px;
+  padding-right: 12px;
+  border-right: 1px solid var(--border);
+}
+
+.y-label {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.y-label.mid {
+  color: #999;
+}
+
+.bars { 
+  display: flex; 
+  align-items: flex-end; 
+  gap: 8px; 
+  width: 100%; 
+  height: 100%; 
+  flex: 1;
+}
+
+.bar-col { 
+  flex: 1; 
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  gap: 5px; 
+  height: 100%; 
+  cursor: default;
+  position: relative;
+}
+
+.bval   { 
+  font-size: 10px; 
+  color: var(--muted); 
+  white-space: nowrap; 
+  min-height: 14px; 
+}
+
+.btrack { 
+  flex: 1; 
+  width: 100%; 
+  background: var(--surface); 
+  border-radius: 6px; 
+  display: flex; 
+  align-items: flex-end; 
+  overflow: hidden;
+}
+
+.bfill  { 
+  width: 100%; 
+  background: var(--accent); 
+  border-radius: 6px 6px 0 0; 
+  transition: height .5s cubic-bezier(.34,1.56,.64,1); 
+  opacity: .85; 
+}
+
+.blabel { 
+  font-size: 11px; 
+  color: var(--muted); 
+  font-weight: 500;
+  text-align: center;
+}
+
+/* Tooltip */
+.tooltip {
+  position: fixed;
+  background: var(--ink);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
+  z-index: 100;
+  transform: translate(-50%, 0);
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.tooltip::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid var(--ink);
+}
+
+.tooltip-label {
+  margin: 0;
+  font-size: 11px;
+  opacity: 0.9;
+}
+
+.tooltip-value {
+  margin: 2px 0 0 0;
+  font-size: 13px;
+  font-weight: 700;
+}
 
 /* Top */
 .top-row {
@@ -415,9 +755,22 @@ tr:hover td { background: var(--surface); }
 @media (max-width: 1024px) {
   .stats-grid { grid-template-columns: repeat(2,1fr); }
   .mid-grid   { grid-template-columns: 1fr; }
+  .date-range-selector { flex-wrap: wrap; }
+}
+@media (max-width: 768px) {
+  .head-btns { flex-direction: column; width: 100%; }
+  .date-range-selector { width: 100%; }
+  .custom-range-inputs { width: 100%; flex-wrap: wrap; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .chart-y-axis { display: none; }
+  th:nth-child(2), td:nth-child(2) { display: none; }
 }
 @media (max-width: 640px) {
-  .stats-grid { grid-template-columns: 1fr 1fr; }
-  th:nth-child(2), td:nth-child(2) { display: none; }
+  .stats-grid { grid-template-columns: 1fr; }
+  .date-range-selector .btn-range {
+    flex: 1;
+    font-size: 11px;
+    padding: 5px 8px;
+  }
 }
 </style>
