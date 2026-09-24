@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\User\StoreUserRequest;
+use App\Http\Requests\User\UpdateUserRequest;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\Tenant;
@@ -39,17 +41,11 @@ class UserController extends Controller
         return response()->json($users);
     }
 
-    public function store(Request $request)
+    public function store(StoreUserRequest $request)
     {
         $authUser = auth()->user();
 
-        $data = $request->validate([
-            'tenant_id' => 'nullable|exists:tenants,id',
-            'role_id'   => 'required|exists:roles,id',
-            'name'      => 'required|string|max:255',
-            'email'     => 'required|email|unique:users,email',
-            'password'  => 'required|string|min:6',
-        ]);
+        $data = $request->validated();
 
         // Tenant admin: force tenant_id to own, and restrict role to admin(2) or kasir(3)
         if ($authUser->role_id !== 1) {
@@ -78,18 +74,12 @@ class UserController extends Controller
         return response()->json($user);
     }
 
-    public function update(Request $request, $id)
+    public function update(UpdateUserRequest $request, $id)
     {
         $authUser = auth()->user();
         $user = $this->scopedQuery()->findOrFail($id);
 
-        $data = $request->validate([
-            'tenant_id' => 'nullable|exists:tenants,id',
-            'role_id'   => 'required|exists:roles,id',
-            'name'      => 'required|string|max:255',
-            'email'     => 'required|email|unique:users,email,' . $id,
-            'password'  => 'nullable|string|min:6',
-        ]);
+        $data = $request->validated();
 
         // Tenant admin: lock tenant_id, restrict role
         if ($authUser->role_id !== 1) {
