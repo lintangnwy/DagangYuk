@@ -64,7 +64,7 @@ const router = createRouter({
     { path: '/warehouses', name: 'warehouses', component: WarehousePage, meta: { requiresAuth: true, denyRoles: ['super_admin'] } },
     { path: '/reports',    name: 'reports',    component: ReportsPage,   meta: { requiresAuth: true, denyRoles: ['super_admin'] } },
     { path: '/reports/cash-shifts', name: 'cash-shifts-report', component: CashShiftsReportPage, meta: { requiresAuth: true, allowRoles: ['admin'] } },
-    { path: '/users',      name: 'users',      component: UsersPage,     meta: { requiresAuth: true } },
+    { path: '/users',      name: 'users',      component: UsersPage,     meta: { requiresAuth: true, allowRoles: ['admin'] } },
     { path: '/settings',   name: 'settings',   component: SettingsPage,  meta: { requiresAuth: true, allowRoles: ['admin'] } },
   ],
 })
@@ -85,7 +85,7 @@ router.beforeEach(async (to, from, next) => {
   if (!auth.user) {
     try {
       await auth.fetchUser()
-      const userRole = (auth.user as { role?: string } | null)?.role
+      const userRole = auth.user?.role as string | undefined
       
       const denyRoles = to.meta.denyRoles as string[] | undefined
       if (denyRoles && userRole && denyRoles.includes(userRole)) {
@@ -94,7 +94,7 @@ router.beforeEach(async (to, from, next) => {
       }
       
       const allowRoles = to.meta.allowRoles as string[] | undefined
-      if (allowRoles && userRole && !allowRoles.includes(userRole)) {
+      if (allowRoles && (!userRole || !allowRoles.includes(userRole))) {
         next({ name: 'dashboard' })
         return
       }

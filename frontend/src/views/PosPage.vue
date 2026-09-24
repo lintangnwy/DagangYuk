@@ -46,7 +46,8 @@ function handleGlobalKeydown(e: KeyboardEvent) {
 
 onMounted(async () => {
   await auth.fetchUser()
-  await Promise.all([pos.fetchProducts(), pos.fetchActiveShift()])
+  await pos.fetchProducts()
+  await pos.fetchActiveShift()
   await nextTick()
 
   gsap.from('.panel-products', { opacity: 0, x: -20, duration: 0.45, ease: 'power2.out', delay: 0.1 })

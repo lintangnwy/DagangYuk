@@ -116,8 +116,11 @@ export const useAuthStore = defineStore('auth', () => {
       }
       user.value = u
       localStorage.setItem(USER_KEY, JSON.stringify(u))
-    } catch (e) {
-      clearSession()
+    } catch (e: any) {
+      // Only clear session on 401 (token truly invalid), not on network/server errors
+      if (e.response?.status === 401) {
+        clearSession()
+      }
     }
   }
 

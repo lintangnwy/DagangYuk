@@ -85,13 +85,11 @@ function fmtDate(d: string) {
 async function load() {
   loading.value = true; error.value = ''
   try {
-    const [whRes, brRes, trRes] = await Promise.all([
-      api.get('/warehouses'),
-      api.get('/branches'),
-      api.get('/stock-transfers'),
-    ])
+    const whRes = await api.get('/warehouses')
     warehouses.value = whRes.data
+    const brRes = await api.get('/branches')
     branches.value   = brRes.data
+    const trRes = await api.get('/stock-transfers')
     transfers.value  = trRes.data
   } catch (e: any) {
     error.value = e.response?.data?.message ?? 'Gagal memuat data.'
